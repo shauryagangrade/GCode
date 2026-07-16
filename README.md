@@ -1,5 +1,10 @@
 # GCode
 
+![Build](https://github.com/shauryagangrade/GCode/actions/workflows/ci.yml/badge.svg)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![PyPI version](https://img.shields.io/pypi/v/gcode.svg)](https://pypi.org/project/gcode/)
+[![Stars](https://img.shields.io/github/stars/shauryagangrade/GCode?style=social)](https://github.com/shauryagangrade/GCode)
+
 A local, interactive AI coding CLI. Chat with a free LLM (via OpenRouter) that can
 read/write/edit files, run shell commands (with your approval), search your
 codebase, and work with git.
