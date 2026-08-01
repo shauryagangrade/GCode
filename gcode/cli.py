@@ -5,7 +5,6 @@ import os
 import sys
 
 import questionary
-from dotenv import load_dotenv
 from langchain_core.messages import SystemMessage
 
 from gcode import __version__
@@ -13,6 +12,7 @@ from gcode import tools as tool_module
 from gcode.agent import build_model, run_turn, trim_history
 from gcode.history import DEFAULT_SESSION, clear, load, save
 from gcode.models import DEFAULT_MODEL, list_free_models, resolve_model_id
+from gcode.setup import get_api_key, load_env, setup_flow
 from gcode.ui import RichUI
 
 SYSTEM_PROMPT = (
@@ -23,16 +23,13 @@ SYSTEM_PROMPT = (
 )
 
 
-def _api_key() -> str:
-    return os.environ.get("OPENROUTER_API_KEY") or os.environ.get("OPENAI_API_KEY", "")
-
-
 def _print_help(ui: RichUI) -> None:
     ui.info(
         "GCode slash commands:\n"
         "  /help            Show this help\n"
         "  /models          List available free models\n"
         "  /model <id|#n>   Switch to a model (id, or #n index from /models)\n"
+        "  /setup           Reconfigure API key\n"
         "  /history         Show recent conversation turns\n"
         "  /clear           Start a fresh session (discard history)\n"
         "  /quit, /exit     Leave GCode\n"
@@ -101,7 +98,7 @@ def _cmd_history(messages, ui: RichUI) -> None:
 
 
 def main() -> None:
-    load_dotenv()
+
 
     parser = argparse.ArgumentParser(
         prog="gcode", description="GCode — a local, interactive AI coding CLI."
@@ -112,12 +109,14 @@ def main() -> None:
     parser.add_argument("--version", action="version", version=f"gcode {__version__}")
     args = parser.parse_args()
 
-    api_key = _api_key()
+    # Load ~/.gcode/.env first (setup module's config location)
+    load_env()
+
+    api_key = get_api_key()
     if not api_key:
-        sys.exit(
-            "OPENROUTER_API_KEY is not set. Copy .env.example to .env and add your "
-            "OpenRouter API key (https://openrouter.ai/keys)."
-        )
+        api_key = setup_flow()
+        if not api_key:
+            sys.exit("No API key provided. Exiting.")
 
     tool_module.set_auto_approve(args.yes)
 
@@ -175,6 +174,17 @@ def main() -> None:
                     model_id = state["model_id"]
                 elif cmd == "history":
                     _cmd_history(messages, ui)
+                elif cmd == "setup":
+                    new_key = setup_flow(force=True)
+                    if new_key:
+                        api_key = new_key
+                        try:
+                            state["model"] = build_model(model_id, api_key)
+                            ui.info(f"API key updated. Model: {model_id}")
+                        except Exception as exc:
+                            ui.error(f"could not build model: {exc}")
+                    else:
+                        ui.info("Setup cancelled.")
                 elif cmd == "clear":
                     clear(session)
                     messages[:] = [SystemMessage(content=SYSTEM_PROMPT)]

@@ -23,6 +23,7 @@ _SLASH_COMMANDS = [
     ("/help", "Show available commands"),
     ("/models", "List available free models"),
     ("/model", "Switch to a different model"),
+    ("/setup", "Reconfigure API key"),
     ("/history", "Show recent conversation turns"),
     ("/clear", "Start a fresh session (discard history)"),
     ("/quit", "Leave GCode"),
