@@ -4,6 +4,7 @@ import argparse
 import os
 import sys
 
+import questionary
 from dotenv import load_dotenv
 from langchain_core.messages import SystemMessage
 
@@ -39,17 +40,31 @@ def _print_help(ui: RichUI) -> None:
     )
 
 
-def _cmd_models(ui: RichUI) -> None:
+def _cmd_models(ui: RichUI) -> str:
+    """Show available free models as an interactive menu.
+
+    Returns the selected model id, or ``""`` if the user cancelled.
+    """
     ids, err = list_free_models()
     if err:
         ui.error(err)
-        return
+        return ""
     if not ids:
         ui.info("No free models found.")
-        return
-    lines = ["Available free models (use '/model <id>' or '/model #n'):"]
-    lines += [f"  {i:>2}. {mid}" for i, mid in enumerate(ids, 1)]
-    ui.print("\n".join(lines), markup=False, highlight=False)
+        return ""
+
+    try:
+        selected = questionary.select(
+            "Select a model:",
+            choices=ids,
+            instruction="(↑↓ navigate, Enter select, Esc cancel)",
+        ).ask()
+    except KeyboardInterrupt:
+        return ""
+
+    if selected is None:
+        return ""
+    return selected
 
 
 def _cmd_model(arg: str, api_key: str, state: dict, ui: RichUI) -> None:
@@ -149,7 +164,11 @@ def main() -> None:
                 elif cmd == "help":
                     _print_help(ui)
                 elif cmd == "models":
-                    _cmd_models(ui)
+                    selected_model = _cmd_models(ui)
+                    if selected_model:
+                        _cmd_model(selected_model, api_key, state, ui)
+                        model = state["model"]
+                        model_id = state["model_id"]
                 elif cmd == "model":
                     _cmd_model(arg, api_key, state, ui)
                     model = state["model"]

@@ -5,6 +5,10 @@ loop calls: streaming assistant text (spinner -> live Markdown), tool-call
 display, a permission gate, and status/error output.
 """
 
+import questionary
+from prompt_toolkit import PromptSession
+from prompt_toolkit.formatted_text import HTML
+from prompt_toolkit.key_binding import KeyBindings
 from rich.console import Console
 from rich.live import Live
 from rich.markdown import Markdown
@@ -13,6 +17,16 @@ from rich.spinner import Spinner
 from rich.text import Text
 
 _TRUNCATE_STEP = 80  # re-render Markdown only after this many new characters
+
+# Slash commands available in the interactive menu
+_SLASH_COMMANDS = [
+    ("/help", "Show available commands"),
+    ("/models", "List available free models"),
+    ("/model", "Switch to a different model"),
+    ("/history", "Show recent conversation turns"),
+    ("/clear", "Start a fresh session (discard history)"),
+    ("/quit", "Leave GCode"),
+]
 
 
 def _truncate(text: str, limit: int) -> str:
@@ -49,9 +63,73 @@ class RichUI:
             )
         )
 
+    def _show_slash_menu(self) -> str:
+        """Show an interactive slash command menu with arrow key navigation.
+
+        Returns the selected command string (e.g. '/help').
+        """
+        choices = [f"{cmd}  — {desc}" for cmd, desc in _SLASH_COMMANDS]
+
+        try:
+            selected = questionary.select(
+                "Select a command:",
+                choices=choices,
+                use_shortcuts=False,
+                instruction="(↑↓ navigate, Enter select, Esc cancel)",
+            ).ask()
+        except KeyboardInterrupt:
+            return ""
+
+        if selected is None:
+            return ""
+
+        cmd = selected.split()[0]
+        return cmd
+
     def prompt(self) -> str:
-        self.console.print("[bold cyan]You:[/] ", end="")
-        return input()
+        """Prompt the user for input.
+
+        If the user types ``/`` (without pressing Enter), an interactive command
+        menu opens immediately (arrow-key navigable).  All other input uses
+        prompt_toolkit with readline-style editing.
+        """
+        # Detect '/' key press using prompt_toolkit so the menu opens
+        # immediately — no Enter required.
+        bindings = KeyBindings()
+        menu_triggered = [False]
+
+        @bindings.add("/")
+        def _(event):
+            """Handle '/' key press — show menu immediately."""
+            if event.current_buffer.text == "":
+                event.app.exit(result="/")
+                menu_triggered[0] = True
+            else:
+                event.current_buffer.insert_text("/")
+
+        session = PromptSession(
+            key_bindings=bindings,
+            enable_open_in_editor=False,
+            enable_system_prompt=False,
+            enable_history_search=False,
+        )
+
+        try:
+            # Flush any pending Rich output so prompt_toolkit can take
+            # control of the terminal cleanly (avoids cursor appearing
+            # before the prompt).
+            self.console.file.flush()
+            line = session.prompt(HTML("<ansibold><ansicyan>You:</ansicyan></ansibold> "), mouse_support=False)
+        except (EOFError, KeyboardInterrupt):
+            raise
+
+        if menu_triggered[0]:
+            selected_cmd = self._show_slash_menu()
+            if selected_cmd:
+                return selected_cmd
+            return ""
+
+        return line
 
     # -- streaming assistant text -----------------------------------------
     def assistant_start(self) -> None:

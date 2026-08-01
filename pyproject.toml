@@ -8,6 +8,7 @@ dependencies = [
     "langchain-openai>=1.0",
     "langchain-core>=1.0",
     "python-dotenv>=1.0",
+    "questionary>=2.0",
     "requests>=2.0",
     "rich>=13.0",
 ]
