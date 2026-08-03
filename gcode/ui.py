@@ -21,8 +21,10 @@ _TRUNCATE_STEP = 80  # re-render Markdown only after this many new characters
 # Slash commands available in the interactive menu
 _SLASH_COMMANDS = [
     ("/help", "Show available commands"),
-    ("/models", "List available free models"),
+    ("/models", "List available models (OpenRouter + Ollama)"),
     ("/model", "Switch to a different model"),
+    ("/ollama", "List/select local Ollama models"),
+    ("/pull", "Pull a model from Ollama registry"),
     ("/setup", "Reconfigure API key"),
     ("/history", "Show recent conversation turns"),
     ("/clear", "Start a fresh session (discard history)"),

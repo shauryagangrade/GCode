@@ -11,7 +11,8 @@ from gcode import __version__
 from gcode import tools as tool_module
 from gcode.agent import build_model, run_turn, trim_history
 from gcode.history import DEFAULT_SESSION, clear, load, save
-from gcode.models import DEFAULT_MODEL, list_free_models, resolve_model_id
+from gcode.models import DEFAULT_MODEL, list_all_models, list_free_models, resolve_model_id
+from gcode.ollama import is_ollama_running, list_local_models, pull_model
 from gcode.setup import get_api_key, load_env, setup_flow
 from gcode.ui import RichUI
 
@@ -27,8 +28,10 @@ def _print_help(ui: RichUI) -> None:
     ui.info(
         "GCode slash commands:\n"
         "  /help            Show this help\n"
-        "  /models          List available free models\n"
+        "  /models          List available models (OpenRouter + Ollama)\n"
         "  /model <id|#n>   Switch to a model (id, or #n index from /models)\n"
+        "  /ollama          List/select local Ollama models\n"
+        "  /pull <model>    Pull a model from Ollama registry\n"
         "  /setup           Reconfigure API key\n"
         "  /history         Show recent conversation turns\n"
         "  /clear           Start a fresh session (discard history)\n"
@@ -38,22 +41,29 @@ def _print_help(ui: RichUI) -> None:
 
 
 def _cmd_models(ui: RichUI) -> str:
-    """Show available free models as an interactive menu.
+    """Show available models (OpenRouter + Ollama) as an interactive menu.
 
     Returns the selected model id, or ``""`` if the user cancelled.
     """
-    ids, err = list_free_models()
-    if err:
-        ui.error(err)
+    all_models = list_all_models()
+    if not all_models:
+        ui.info("No models found. Check your network or Ollama server.")
         return ""
-    if not ids:
-        ui.info("No free models found.")
-        return ""
+
+    # Build choice labels and maintain a mapping from label to model id
+    choices = []
+    label_to_id = {}
+    for m in all_models:
+        source_tag = "[ollama]" if m["source"] == "ollama" else "[openrouter]"
+        size_tag = f" ({m['size']})" if m.get("size") else ""
+        label = f"{m['id']}  {source_tag}{size_tag}"
+        choices.append(label)
+        label_to_id[label] = m["id"]
 
     try:
         selected = questionary.select(
             "Select a model:",
-            choices=ids,
+            choices=choices,
             instruction="(↑↓ navigate, Enter select, Esc cancel)",
         ).ask()
     except KeyboardInterrupt:
@@ -61,12 +71,14 @@ def _cmd_models(ui: RichUI) -> str:
 
     if selected is None:
         return ""
-    return selected
+
+    # Return the model id from the mapping
+    return label_to_id.get(selected, selected.split()[0])
 
 
 def _cmd_model(arg: str, api_key: str, state: dict, ui: RichUI) -> None:
-    ids, _err = list_free_models()
-    model_id, err = resolve_model_id(arg, ids)
+    all_models = list_all_models()
+    model_id, err = resolve_model_id(arg, all_models)
     if err:
         ui.error(err)
         return
@@ -97,6 +109,61 @@ def _cmd_history(messages, ui: RichUI) -> None:
         ui.print("\n".join(lines), markup=False, highlight=False)
 
 
+def _cmd_ollama(ui: RichUI) -> str:
+    """Show local Ollama models as an interactive menu.
+
+    Returns the selected model id (prefixed with ``ollama/``), or ``""`` if the
+    user cancelled or no models are available.
+    """
+    if not is_ollama_running():
+        ui.info("Ollama server not detected at localhost:11434.")
+        ui.info("Install Ollama: https://ollama.ai")
+        return ""
+
+    models, err = list_local_models()
+    if err:
+        ui.error(err)
+        return ""
+    if not models:
+        ui.info("No models found locally. Use /pull <model> to download one.")
+        return ""
+
+    choices = [f"{m['name']}  ({m['size']})" for m in models]
+
+    try:
+        selected = questionary.select(
+            "Select an Ollama model:",
+            choices=choices,
+            instruction="(↑↓ navigate, Enter select, Esc cancel)",
+        ).ask()
+    except KeyboardInterrupt:
+        return ""
+
+    if selected is None:
+        return ""
+
+    model_name = selected.split()[0]
+    return f"ollama/{model_name}"
+
+
+def _cmd_pull(model_name: str, ui: RichUI) -> None:
+    """Pull a model from the Ollama registry."""
+    if not model_name.strip():
+        ui.error("Usage: /pull <model_name>  (e.g. /pull llama3.2)")
+        return
+    if not is_ollama_running():
+        ui.error("Ollama server not detected. Is Ollama running?")
+        ui.info("Install Ollama: https://ollama.ai")
+        return
+
+    ui.info(f"Pulling {model_name}...")
+    success, msg = pull_model(model_name.strip())
+    if success:
+        ui.info(f"✓ {msg}")
+    else:
+        ui.error(msg)
+
+
 def main() -> None:
 
 
@@ -112,15 +179,31 @@ def main() -> None:
     # Load ~/.gcode/.env first (setup module's config location)
     load_env()
 
+    # Determine the model id early — Ollama models don't need an API key
+    model_id = args.model or os.environ.get("GCODE_MODEL") or DEFAULT_MODEL
+    using_ollama = model_id.startswith("ollama/")
+
     api_key = get_api_key()
-    if not api_key:
-        api_key = setup_flow()
-        if not api_key:
+    if not api_key and not using_ollama:
+        api_key = setup_flow(skip_for_ollama=True)
+        if api_key is None:
+            # User chose to use Ollama — switch to the /ollama menu
+            using_ollama = True
+            _ui = RichUI()
+            selected_model = _cmd_ollama(_ui)
+            if selected_model:
+                model_id = selected_model
+                api_key = "ollama"  # placeholder; Ollama ignores it
+            else:
+                sys.exit("No model selected. Exiting.")
+        elif not api_key:
             sys.exit("No API key provided. Exiting.")
+    elif not api_key:
+        # Running an Ollama model without any key — that's fine
+        api_key = "ollama"
 
     tool_module.set_auto_approve(args.yes)
 
-    model_id = args.model or os.environ.get("GCODE_MODEL") or DEFAULT_MODEL
     try:
         model = build_model(model_id, api_key)
     except Exception as exc:
@@ -172,6 +255,14 @@ def main() -> None:
                     _cmd_model(arg, api_key, state, ui)
                     model = state["model"]
                     model_id = state["model_id"]
+                elif cmd == "ollama":
+                    selected_model = _cmd_ollama(ui)
+                    if selected_model:
+                        _cmd_model(selected_model, api_key, state, ui)
+                        model = state["model"]
+                        model_id = state["model_id"]
+                elif cmd == "pull":
+                    _cmd_pull(arg, ui)
                 elif cmd == "history":
                     _cmd_history(messages, ui)
                 elif cmd == "setup":

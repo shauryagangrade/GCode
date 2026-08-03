@@ -2,6 +2,9 @@
 
 Handles first-run setup: checks for an existing key, prompts the user,
 validates against OpenRouter, and persists to ``~/.gcode/.env``.
+
+Supports Ollama — when the user is running a local Ollama model, no API
+key is required.
 """
 
 import os
@@ -33,7 +36,7 @@ def load_env() -> None:
         load_dotenv(_ENV_FILE, override=True)
 
 
-def validate_api_key(key: str) -> tuple[bool, str]:
+def validate_api_key(key: str):
     """Validate *key* by hitting the OpenRouter models endpoint.
 
     Returns ``(is_valid, error_or_empty)``.
@@ -84,19 +87,33 @@ def save_api_key(key: str) -> None:
     load_dotenv(_ENV_FILE, override=True)
 
 
-def setup_flow(force: bool = False) -> str:
+def setup_flow(force: bool = False, skip_for_ollama: bool = False):
     """Run the full interactive setup flow.
 
     When *force* is ``False`` (the default), an existing key is returned
     immediately.  When ``True``, the user is always prompted for a new key.
+    When *skip_for_ollama* is ``True`` and the user chooses an Ollama model,
+    ``None`` is returned (no API key needed).
 
-    Returns the API key, or ``""`` if the user cancelled or validation failed.
+    Returns the API key string, ``None`` if the user chose Ollama, or ``""``
+    if the user cancelled or validation failed.
     """
     load_env()
     if not force:
         existing = get_api_key()
         if existing:
             return existing
+
+    # If Ollama is running, offer to use it (no API key needed)
+    if skip_for_ollama:
+        from gcode.ollama import is_ollama_running
+        if is_ollama_running():
+            use_ollama = questionary.confirm(
+                "Ollama is running locally. Use a local model instead?",
+                default=True,
+            ).ask()
+            if use_ollama:
+                return None  # caller switches to /ollama menu
 
     while True:
         key = prompt_for_api_key()

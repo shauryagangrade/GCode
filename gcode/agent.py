@@ -4,6 +4,7 @@ from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage, Too
 from langchain_openai import ChatOpenAI
 
 from gcode.errors import format_model_error
+from gcode.ollama import OLLAMA_V1_URL
 from gcode.tools import AUTO_APPROVE, TOOL_MAP
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
@@ -11,9 +12,27 @@ MAX_HISTORY = 30
 
 
 def build_model(model_id: str, api_key: str):
-    """Build a ChatOpenAI model (via OpenRouter) bound to all GCode tools."""
+    """Build a ChatOpenAI model bound to all GCode tools.
+
+    Supports both OpenRouter (requires api_key) and local Ollama (api_key can
+    be empty).  Ollama model ids are prefixed with ``ollama/`` (e.g.
+    ``ollama/llama3.2``); the prefix is stripped when talking to the local
+    server.
+    """
     from gcode.tools import ALL_TOOLS
 
+    # Ollama local models — no API key required
+    # Ollama's OpenAI-compatible endpoint ignores the API key field, so we
+    # pass a non-empty placeholder to satisfy ChatOpenAI's validation.
+    if model_id.startswith("ollama/"):
+        ollama_model = model_id[len("ollama/"):]  # strip prefix
+        return ChatOpenAI(
+            model=ollama_model,
+            openai_api_key="ollama",
+            base_url=OLLAMA_V1_URL,
+        ).bind_tools(ALL_TOOLS)
+
+    # Default: OpenRouter
     return ChatOpenAI(
         model=model_id,
         openai_api_key=api_key,

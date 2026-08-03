@@ -2,9 +2,13 @@
 
 There is no single catch-all "free" model id on OpenRouter; instead we fetch the
 live catalog and let the user list/switch among every real `:free` model.
+
+Also supports Ollama local models — see gcode.ollama.
 """
 
 import requests
+
+from gcode.ollama import OLLAMA_V1_URL, is_ollama_running, list_local_models
 
 OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
 DEFAULT_MODEL = "qwen/qwen3-coder:free"
@@ -33,28 +37,73 @@ def list_free_models():
     return ids, None
 
 
-def resolve_model_id(text, free_ids):
+def list_all_models():
+    """Return a combined list of OpenRouter free models + local Ollama models.
+
+    Each entry is a dict with keys ``id`` and ``source`` ("openrouter" or "ollama").
+    Ollama models are prefixed with ``ollama/`` in the id.
+    """
+    all_models = []
+
+    # OpenRouter free models
+    free_ids, _err = list_free_models()
+    for mid in free_ids:
+        all_models.append({"id": mid, "source": "openrouter"})
+
+    # Ollama local models
+    if is_ollama_running():
+        ollama_models, _err = list_local_models()
+        for m in ollama_models:
+            name = m["name"]
+            ollama_id = f"ollama/{name}"
+            all_models.append({
+                "id": ollama_id,
+                "source": "ollama",
+                "size": m.get("size", ""),
+            })
+
+    return all_models
+
+
+def resolve_model_id(text, all_models=None):
     """Resolve user input to a model id.
 
-    Accepts a full model id, or a 1-based index into ``free_ids`` (as printed by
+    Accepts a full model id, or a 1-based index into ``all_models`` (as printed by
     ``/models``). Any id that looks like a model reference is also accepted even
-    if it is not in the free list (e.g. a paid model).
+    if it is not in the model list (e.g. a paid model).
+
+    For Ollama models, accepts both ``ollama/modelname`` and ``modelname``.
     """
     text = (text or "").strip()
     if not text:
         return None, "No model specified."
 
-    if text in free_ids:
+    model_ids = [m["id"] for m in all_models] if all_models else []
+
+    # Direct match
+    if text in model_ids:
         return text, None
 
+    # Check if it's an Ollama model reference without prefix
+    if not text.startswith("ollama/"):
+        ollama_prefixed = f"ollama/{text}"
+        if ollama_prefixed in model_ids:
+            return ollama_prefixed, None
+
+    # Index-based selection (1-based)
     try:
         idx = int(text)
-        if 1 <= idx <= len(free_ids):
-            return free_ids[idx - 1], None
+        if 1 <= idx <= len(model_ids):
+            return model_ids[idx - 1], None
     except ValueError:
         pass
 
+    # Accept any valid-looking model reference
     if "/" in text or text.startswith("openrouter") or text.endswith(":free"):
+        return text, None
+
+    # Accept Ollama model references
+    if text.startswith("ollama/"):
         return text, None
 
     return None, f"Unknown model: {text}"
