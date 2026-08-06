@@ -5,7 +5,9 @@ description. The model calls tools by name; :data:`TOOL_MAP` dispatches those
 calls back to the right object.
 """
 
+import fnmatch
 import os
+import re
 import shutil
 import subprocess
 
@@ -173,7 +175,11 @@ def list_dir(path: str = ".") -> str:
 
 @tool
 def grep(pattern: str, path: str = ".", glob: str = "*") -> str:
-    """Search file contents for a pattern using grep.
+    """Search file contents for a pattern.
+
+    Uses the system ``grep`` binary when available (fast, handles large
+    trees well) and falls back to a pure-Python search otherwise, so this
+    works on systems without ``grep`` on PATH (e.g. plain Windows).
 
     Args:
         pattern: Regex pattern to search for.
@@ -181,18 +187,58 @@ def grep(pattern: str, path: str = ".", glob: str = "*") -> str:
         glob: Shell glob to limit which files are searched (default "*").
     """
     grep_bin = shutil.which("grep")
-    if not grep_bin:
-        return "grep is not available on this system."
-    cmd = [grep_bin, "-rnI", "--include", glob, "-e", pattern, path]
+    if grep_bin:
+        cmd = [grep_bin, "-rnI", "--include", glob, "-e", pattern, path]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        except subprocess.TimeoutExpired:
+            return "grep timed out after 60s."
+        if result.returncode == 1:
+            return f"No matches for {pattern!r} in {path}."
+        if result.returncode != 0:
+            return f"grep error: {result.stderr.strip()}"
+        return result.stdout.strip()
+
+    return _grep_python(pattern, path, glob)
+
+
+def _grep_python(pattern: str, path: str, glob: str) -> str:
+    """Pure-Python fallback for :func:`grep` when no ``grep`` binary exists.
+
+    Walks ``path`` (or searches a single file), matching filenames against
+    ``glob`` and lines against ``pattern`` as a regex. Best-effort: unreadable
+    or binary-looking files are skipped rather than raising.
+    """
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-    except subprocess.TimeoutExpired:
-        return "grep timed out after 60s."
-    if result.returncode == 1:
+        regex = re.compile(pattern)
+    except re.error as exc:
+        return f"Invalid regex {pattern!r}: {exc}"
+
+    if os.path.isfile(path):
+        files = [path]
+    elif os.path.isdir(path):
+        files = []
+        for root, _dirs, names in os.walk(path):
+            for name in names:
+                if fnmatch.fnmatch(name, glob):
+                    files.append(os.path.join(root, name))
+    else:
+        return f"Path not found: {path}"
+
+    matches = []
+    for filepath in sorted(files):
+        try:
+            with open(filepath, "r", encoding="utf-8", errors="strict") as f:
+                for lineno, line in enumerate(f, start=1):
+                    if regex.search(line):
+                        matches.append(f"{filepath}:{lineno}:{line.rstrip(chr(10))}")
+        except (UnicodeDecodeError, OSError):
+            # Skip binary or unreadable files, same as `grep -I`.
+            continue
+
+    if not matches:
         return f"No matches for {pattern!r} in {path}."
-    if result.returncode != 0:
-        return f"grep error: {result.stderr.strip()}"
-    return result.stdout.strip()
+    return "\n".join(matches)
 
 
 @tool
