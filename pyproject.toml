@@ -1,6 +1,6 @@
 [project]
 name = "gcode"
-version = "0.1.0"
+version = "0.2.0"
 description = "GCode — a local, interactive AI coding CLI."
 requires-python = ">=3.10"
 dependencies = [
