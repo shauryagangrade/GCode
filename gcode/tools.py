@@ -202,6 +202,18 @@ def grep(pattern: str, path: str = ".", glob: str = "*") -> str:
     return _grep_python(pattern, path, glob)
 
 
+def _is_binary(filepath: str) -> bool:
+    """Detect if a file is binary by checking for null bytes in the first chunk."""
+    try:
+        with open(filepath, "rb") as f:
+            chunk = f.read(8192)
+            if b"\x00" in chunk:
+                return True
+    except OSError:
+        pass
+    return False
+
+
 def _grep_python(pattern: str, path: str, glob: str) -> str:
     """Pure-Python fallback for :func:`grep` when no ``grep`` binary exists.
 
@@ -227,6 +239,8 @@ def _grep_python(pattern: str, path: str, glob: str) -> str:
 
     matches = []
     for filepath in sorted(files):
+        if _is_binary(filepath):
+            continue
         try:
             with open(filepath, "r", encoding="utf-8", errors="strict") as f:
                 for lineno, line in enumerate(f, start=1):
