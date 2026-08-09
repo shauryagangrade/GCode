@@ -174,7 +174,12 @@ def list_dir(path: str = ".") -> str:
 
 
 @tool
-def grep(pattern: str, path: str = ".", glob: str = "*") -> str:
+def grep(
+    pattern: str,
+    path: str = ".",
+    glob: str = "*",
+    ignore_case: bool = False,
+) -> str:
     """Search file contents for a pattern.
 
     Uses the system ``grep`` binary when available (fast, handles large
@@ -185,10 +190,14 @@ def grep(pattern: str, path: str = ".", glob: str = "*") -> str:
         pattern: Regex pattern to search for.
         path: Directory or file to search (default current directory).
         glob: Shell glob to limit which files are searched (default "*").
+        ignore_case: Match upper- and lower-case variants (default False).
     """
     grep_bin = shutil.which("grep")
     if grep_bin:
-        cmd = [grep_bin, "-rnI", "--include", glob, "-e", pattern, path]
+        flags = ["-rnI"]
+        if ignore_case:
+            flags.append("-i")
+        cmd = [grep_bin, *flags, "--include", glob, "-e", pattern, path]
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         except subprocess.TimeoutExpired:
@@ -199,7 +208,7 @@ def grep(pattern: str, path: str = ".", glob: str = "*") -> str:
             return f"grep error: {result.stderr.strip()}"
         return result.stdout.strip()
 
-    return _grep_python(pattern, path, glob)
+    return _grep_python(pattern, path, glob, ignore_case)
 
 
 def _is_binary(filepath: str) -> bool:
@@ -214,7 +223,9 @@ def _is_binary(filepath: str) -> bool:
     return False
 
 
-def _grep_python(pattern: str, path: str, glob: str) -> str:
+def _grep_python(
+    pattern: str, path: str, glob: str, ignore_case: bool = False
+) -> str:
     """Pure-Python fallback for :func:`grep` when no ``grep`` binary exists.
 
     Walks ``path`` (or searches a single file), matching filenames against
@@ -222,7 +233,7 @@ def _grep_python(pattern: str, path: str, glob: str) -> str:
     or binary-looking files are skipped rather than raising.
     """
     try:
-        regex = re.compile(pattern)
+        regex = re.compile(pattern, re.IGNORECASE if ignore_case else 0)
     except re.error as exc:
         return f"Invalid regex {pattern!r}: {exc}"
 
