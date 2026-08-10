@@ -224,7 +224,11 @@ def _grep_python(pattern: str, path: str, glob: str) -> str:
     try:
         regex = re.compile(pattern)
     except re.error as exc:
-        return f"Invalid regex {pattern!r}: {exc}"
+        return (
+            f"Invalid regex {pattern!r}: {exc}. "
+            "Check the pattern syntax and escape special characters "
+            "(for example, use '\\\\' for a literal backslash)."
+        )
 
     if os.path.isfile(path):
         files = [path]

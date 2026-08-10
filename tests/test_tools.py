@@ -90,6 +90,9 @@ def test_grep_python_fallback_single_file(tmp_path):
 def test_grep_python_fallback_invalid_regex(tmp_path):
     out = _grep_python("(unclosed", str(tmp_path), "*")
     assert "Invalid regex" in out
+    assert "(unclosed" in out
+    assert "Check the pattern syntax" in out
+    assert "literal backslash" in out
 
 
 def test_grep_python_fallback_path_not_found():
