@@ -54,6 +54,14 @@ def test_grep_no_matches(tmp_path):
     assert "No matches" in out
 
 
+def test_grep_ignore_case(tmp_path):
+    (tmp_path / "a.txt").write_text("Needle in mixed case\n")
+    out = grep.invoke(
+        {"pattern": "needle", "path": str(tmp_path), "ignore_case": True}
+    )
+    assert "Needle in mixed case" in out
+
+
 def test_grep_falls_back_without_grep_binary(tmp_path):
     (tmp_path / "a.txt").write_text("needle in hay\n")
     (tmp_path / "b.txt").write_text("nothing here\n")
@@ -78,6 +86,12 @@ def test_grep_python_fallback_glob_filter(tmp_path):
     out = _grep_python("needle", str(tmp_path), "*.py")
     assert "b.py" in out
     assert "a.txt" not in out
+
+
+def test_grep_python_fallback_ignore_case(tmp_path):
+    (tmp_path / "a.txt").write_text("Needle in mixed case\n")
+    out = _grep_python("needle", str(tmp_path), "*", ignore_case=True)
+    assert "Needle in mixed case" in out
 
 
 def test_grep_python_fallback_single_file(tmp_path):
