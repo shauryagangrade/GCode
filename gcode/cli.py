@@ -236,7 +236,7 @@ def main() -> None:
             try:
                 user_input = ui.prompt()
             except (EOFError, KeyboardInterrupt):
-                ui.info("\nGoodbye.")
+                ui.goodbye(session)
                 break
 
             if not user_input.strip():
@@ -247,7 +247,7 @@ def main() -> None:
                 cmd = parts[0].lower()
                 arg = parts[1] if len(parts) > 1 else ""
                 if cmd in ("quit", "exit"):
-                    ui.info("Goodbye.")
+                    ui.goodbye(session)
                     break
                 elif cmd == "help":
                     _print_help(ui)
@@ -295,7 +295,7 @@ def main() -> None:
             run_turn(user_input, messages, model, ui)
             save(session, messages)
     except KeyboardInterrupt:
-        ui.info("\nGoodbye.")
+        ui.goodbye(session)
 
     save(session, messages)
 

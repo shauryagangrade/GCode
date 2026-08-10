@@ -32,6 +32,15 @@ _SLASH_COMMANDS = [
     ("/quit", "Leave GCode"),
 ]
 
+_GCODE_LOGO = r"""
+ ██████╗  ██████╗ ██████╗ ██████╗ ███████╗
+██╔════╝ ██╔════╝██╔═══██╗██╔══██╗██╔════╝
+██║  ███╗██║     ██║   ██║██║  ██║█████╗
+██║   ██║██║     ██║   ██║██║  ██║██╔══╝
+╚██████╔╝╚██████╗╚██████╔╝██████╔╝███████╗
+ ╚═════╝  ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝
+""".strip("\n")
+
 
 def _truncate(text: str, limit: int) -> str:
     text = " ".join(str(text).split())
@@ -66,6 +75,13 @@ class RichUI:
                 f"[dim]session:[/] {session}"
             )
         )
+
+    def goodbye(self, session: str) -> None:
+        self._stop_live()
+        self.console.print()
+        self.console.print(Text(_GCODE_LOGO, style="bold bright_green"))
+        self.console.print("[dim green]Thanks for using GCode.\nKeep building. Keep shipping.[/dim green]")
+        self.console.print(Rule(f"[green]session[/green] [dim]::[/dim] [bold green]{session}[/bold green]"))
 
     def _show_slash_menu(self) -> str:
         """Show an interactive slash command menu with arrow key navigation.
