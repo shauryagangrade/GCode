@@ -56,9 +56,7 @@ def test_grep_no_matches(tmp_path):
 
 def test_grep_ignore_case(tmp_path):
     (tmp_path / "a.txt").write_text("Needle in mixed case\n")
-    out = grep.invoke(
-        {"pattern": "needle", "path": str(tmp_path), "ignore_case": True}
-    )
+    out = grep.invoke({"pattern": "needle", "path": str(tmp_path), "ignore_case": True})
     assert "Needle in mixed case" in out
 
 

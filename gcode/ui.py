@@ -80,8 +80,14 @@ class RichUI:
         self._stop_live()
         self.console.print()
         self.console.print(Text(_GCODE_LOGO, style="bold bright_green"))
-        self.console.print("[dim green]Thanks for using GCode.\nKeep building. Keep shipping.[/dim green]")
-        self.console.print(Rule(f"[green]session[/green] [dim]::[/dim] [bold green]{session}[/bold green]"))
+        self.console.print(
+            "[dim green]Thanks for using GCode.\nKeep building. Keep shipping.[/dim green]"
+        )
+        self.console.print(
+            Rule(
+                f"[green]session[/green] [dim]::[/dim] [bold green]{session}[/bold green]"
+            )
+        )
 
     def _show_slash_menu(self) -> str:
         """Show an interactive slash command menu with arrow key navigation.
@@ -139,7 +145,10 @@ class RichUI:
             # control of the terminal cleanly (avoids cursor appearing
             # before the prompt).
             self.console.file.flush()
-            line = session.prompt(HTML("<ansibold><ansicyan>You:</ansicyan></ansibold> "), mouse_support=False)
+            line = session.prompt(
+                HTML("<ansibold><ansicyan>You:</ansicyan></ansibold> "),
+                mouse_support=False,
+            )
         except (EOFError, KeyboardInterrupt):
             raise
 

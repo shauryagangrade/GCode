@@ -11,7 +11,11 @@ from gcode import __version__
 from gcode import tools as tool_module
 from gcode.agent import build_model, run_turn, trim_history
 from gcode.history import DEFAULT_SESSION, clear, load, save
-from gcode.models import DEFAULT_MODEL, list_all_models, list_free_models, resolve_model_id
+from gcode.models import (
+    DEFAULT_MODEL,
+    list_all_models,
+    resolve_model_id,
+)
 from gcode.ollama import is_ollama_running, list_local_models, pull_model
 from gcode.setup import get_api_key, load_env, setup_flow
 from gcode.ui import RichUI
@@ -172,13 +176,16 @@ def _cmd_pull(model_name: str, ui: RichUI) -> None:
 
 def main() -> None:
 
-
     parser = argparse.ArgumentParser(
         prog="gcode", description="GCode — a local, interactive AI coding CLI."
     )
     parser.add_argument("--model", help="Model ID (overrides GCODE_MODEL and default).")
-    parser.add_argument("--session", default=DEFAULT_SESSION, help="Named session for history.")
-    parser.add_argument("--yes", action="store_true", help="Auto-approve bash commands (unsafe).")
+    parser.add_argument(
+        "--session", default=DEFAULT_SESSION, help="Named session for history."
+    )
+    parser.add_argument(
+        "--yes", action="store_true", help="Auto-approve bash commands (unsafe)."
+    )
     parser.add_argument("--version", action="version", version=f"gcode {__version__}")
     args = parser.parse_args()
 
