@@ -81,7 +81,7 @@ class RichUI:
         self.console.print()
         self.console.print(Text(_GCODE_LOGO, style="bold bright_green"))
         self.console.print(
-            "[dim green]Thanks for using GCode.\nKeep building. Keep shipping.[/dim green]"
+            "[dim green]Thanks for coding with GCode.\nKeep building. Keep shipping.[/dim green]"
         )
         self.console.print(
             Rule(
