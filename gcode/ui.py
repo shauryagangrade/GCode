@@ -32,6 +32,15 @@ _SLASH_COMMANDS = [
     ("/quit", "Leave GCode"),
 ]
 
+_GCODE_LOGO = r"""
+ ██████╗  ██████╗ ██████╗ ██████╗ ███████╗
+██╔════╝ ██╔════╝██╔═══██╗██╔══██╗██╔════╝
+██║  ███╗██║     ██║   ██║██║  ██║█████╗
+██║   ██║██║     ██║   ██║██║  ██║██╔══╝
+╚██████╔╝╚██████╗╚██████╔╝██████╔╝███████╗
+ ╚═════╝  ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝
+""".strip("\n")
+
 
 def _truncate(text: str, limit: int) -> str:
     text = " ".join(str(text).split())
@@ -64,6 +73,19 @@ class RichUI:
                 f"[bold cyan]GCode[/] [dim]v{version}[/]   "
                 f"[dim]model:[/] {model}   [dim]cwd:[/] {cwd}   "
                 f"[dim]session:[/] {session}"
+            )
+        )
+
+    def goodbye(self, session: str) -> None:
+        self._stop_live()
+        self.console.print()
+        self.console.print(Text(_GCODE_LOGO, style="bold bright_green"))
+        self.console.print(
+            "[dim green]Thanks for coding with GCode.\nKeep building. Keep shipping.[/dim green]"
+        )
+        self.console.print(
+            Rule(
+                f"[green]session[/green] [dim]::[/dim] [bold green]{session}[/bold green]"
             )
         )
 
@@ -123,7 +145,10 @@ class RichUI:
             # control of the terminal cleanly (avoids cursor appearing
             # before the prompt).
             self.console.file.flush()
-            line = session.prompt(HTML("<ansibold><ansicyan>You:</ansicyan></ansibold> "), mouse_support=False)
+            line = session.prompt(
+                HTML("<ansibold><ansicyan>You:</ansicyan></ansibold> "),
+                mouse_support=False,
+            )
         except (EOFError, KeyboardInterrupt):
             raise
 

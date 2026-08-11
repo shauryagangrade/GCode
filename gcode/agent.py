@@ -25,7 +25,7 @@ def build_model(model_id: str, api_key: str):
     # Ollama's OpenAI-compatible endpoint ignores the API key field, so we
     # pass a non-empty placeholder to satisfy ChatOpenAI's validation.
     if model_id.startswith("ollama/"):
-        ollama_model = model_id[len("ollama/"):]  # strip prefix
+        ollama_model = model_id[len("ollama/") :]  # strip prefix
         return ChatOpenAI(
             model=ollama_model,
             openai_api_key="ollama",

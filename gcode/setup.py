@@ -107,6 +107,7 @@ def setup_flow(force: bool = False, skip_for_ollama: bool = False):
     # If Ollama is running, offer to use it (no API key needed)
     if skip_for_ollama:
         from gcode.ollama import is_ollama_running
+
         if is_ollama_running():
             use_ollama = questionary.confirm(
                 "Ollama is running locally. Use a local model instead?",

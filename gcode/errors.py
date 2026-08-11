@@ -1,6 +1,5 @@
 """Parse provider/API errors into readable messages (no raw JSON)."""
 
-
 import json
 
 

@@ -6,8 +6,6 @@ helpers to detect the server, list locally-installed models, and optionally
 pull new ones.
 """
 
-from typing import Dict, List, Optional, Tuple
-
 import requests
 
 OLLAMA_BASE_URL = "http://localhost:11434"
@@ -24,7 +22,7 @@ def is_ollama_running() -> bool:
         return False
 
 
-def list_local_models() -> Tuple[List[Dict], Optional[str]]:
+def list_local_models() -> tuple[list[dict], str | None]:
     """Return a list of locally installed Ollama models.
 
     Each entry is a dict with keys ``name`` and ``size`` (in human form).
@@ -41,15 +39,17 @@ def list_local_models() -> Tuple[List[Dict], Optional[str]]:
     for m in data.get("models", []):
         name = m.get("name", "")
         size_bytes = m.get("size", 0)
-        models.append({
-            "name": name,
-            "size": _format_size(size_bytes),
-        })
+        models.append(
+            {
+                "name": name,
+                "size": _format_size(size_bytes),
+            }
+        )
     models.sort(key=lambda x: x["name"])
     return models, None
 
 
-def pull_model(model_name: str, ui=None) -> Tuple[bool, str]:
+def pull_model(model_name: str, ui=None) -> tuple[bool, str]:
     """Pull a model from the Ollama registry.
 
     Streams progress to *ui* if provided. Returns ``(success, message)``.

@@ -139,8 +139,10 @@ def edit_file(
             "replace all, or make old_string unique."
         )
 
-    new_text = text.replace(old_string, new_string, 1) if not replace_all else text.replace(
-        old_string, new_string
+    new_text = (
+        text.replace(old_string, new_string, 1)
+        if not replace_all
+        else text.replace(old_string, new_string)
     )
     try:
         with open(path, "w", encoding="utf-8") as f:
@@ -223,9 +225,7 @@ def _is_binary(filepath: str) -> bool:
     return False
 
 
-def _grep_python(
-    pattern: str, path: str, glob: str, ignore_case: bool = False
-) -> str:
+def _grep_python(pattern: str, path: str, glob: str, ignore_case: bool = False) -> str:
     """Pure-Python fallback for :func:`grep` when no ``grep`` binary exists.
 
     Walks ``path`` (or searches a single file), matching filenames against

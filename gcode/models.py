@@ -8,7 +8,7 @@ Also supports Ollama local models — see gcode.ollama.
 
 import requests
 
-from gcode.ollama import OLLAMA_V1_URL, is_ollama_running, list_local_models
+from gcode.ollama import is_ollama_running, list_local_models
 
 OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
 DEFAULT_MODEL = "qwen/qwen3-coder:free"
@@ -56,11 +56,13 @@ def list_all_models():
         for m in ollama_models:
             name = m["name"]
             ollama_id = f"ollama/{name}"
-            all_models.append({
-                "id": ollama_id,
-                "source": "ollama",
-                "size": m.get("size", ""),
-            })
+            all_models.append(
+                {
+                    "id": ollama_id,
+                    "source": "ollama",
+                    "size": m.get("size", ""),
+                }
+            )
 
     return all_models
 
