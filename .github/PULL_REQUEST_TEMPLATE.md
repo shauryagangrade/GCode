@@ -1,5 +1,10 @@
 <!-- Thanks for contributing to GCode. Keep PRs focused and small where possible. -->
 
+> **House rules**
+> - Keep features and style/formatting churn in **separate** PRs.
+> - If behaviour or UI changes, update `demo/make_demo.py` to match.
+> - Update the CHANGELOG under `## [Unreleased]` for user-facing changes.
+
 ## What and why
 <!-- What does this change and why? Link any related issue: Closes #123 -->
 

@@ -10,6 +10,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Dedicated goodbye screen (ASCII logo, closing message, session ID) shown on exit via Ctrl+C/Ctrl+D, `/quit`, or interrupt
 
 ### Changed
 
