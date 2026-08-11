@@ -1,6 +1,7 @@
 """Parse provider/API errors into readable messages (no raw JSON)."""
 
 import json
+from contextlib import suppress
 
 
 def _extract_error(obj):
@@ -50,10 +51,8 @@ def format_model_error(exc) -> str:
 
     retry = meta.get("retry_after_seconds") or meta.get("retry_after_seconds_raw")
     if retry:
-        try:
+        with suppress(TypeError, ValueError):
             text = f"{text} Retry after ~{int(float(retry))}s."
-        except (TypeError, ValueError):
-            pass
 
     if code is not None:
         text = f"[{code}] {text}"

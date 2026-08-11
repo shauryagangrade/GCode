@@ -13,6 +13,17 @@ dependencies = [
     "rich>=15.0.0",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "bandit>=1.8",
+    "build>=1.2",
+    "coverage>=7",
+    "mypy>=1.13",
+    "pip-audit>=2.7",
+    "pytest>=8",
+    "ruff>=0.9",
+]
+
 [project.scripts]
 gcode = "gcode.cli:main"
 
@@ -23,3 +34,38 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["gcode*"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+src = ["gcode", "tests"]
+extend-exclude = ["demo"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = [
+    "SIM102",  # nested if reads clearer than a combined condition
+]
+
+[tool.mypy]
+python_version = "3.10"
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+[tool.bandit]
+exclude_dirs = ["tests", "demo"]
+skips = [
+    "B404",  # subprocess import is intentional (git + bash tools)
+    "B603",  # list-argument subprocess calls are safe (no shell)
+]
+
+[tool.coverage.run]
+source = ["gcode"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+fail_under = 30
+show_missing = true
+skip_covered = true

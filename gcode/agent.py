@@ -2,6 +2,7 @@
 
 from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage, ToolMessage
 from langchain_openai import ChatOpenAI
+from pydantic import SecretStr
 
 from gcode.errors import format_model_error
 from gcode.ollama import OLLAMA_V1_URL
@@ -28,14 +29,14 @@ def build_model(model_id: str, api_key: str):
         ollama_model = model_id[len("ollama/") :]  # strip prefix
         return ChatOpenAI(
             model=ollama_model,
-            openai_api_key="ollama",
+            api_key=SecretStr("ollama"),
             base_url=OLLAMA_V1_URL,
         ).bind_tools(ALL_TOOLS)
 
     # Default: OpenRouter
     return ChatOpenAI(
         model=model_id,
-        openai_api_key=api_key,
+        api_key=SecretStr(api_key),
         base_url=OPENROUTER_BASE_URL,
     ).bind_tools(ALL_TOOLS)
 
@@ -55,7 +56,7 @@ def trim_history(messages: list) -> None:
     messages[:] = [messages[0]] + tail
 
 
-def _stream(messages: list, model, ui) -> AIMessageChunk:
+def _stream(messages: list, model, ui) -> AIMessage:
     """Stream one model response, forwarding text to the UI, and return the
     accumulated message (with ``tool_calls`` populated)."""
     ui.assistant_start()

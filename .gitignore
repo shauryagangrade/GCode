@@ -24,6 +24,7 @@ build/
 htmlcov/
 .mypy_cache/
 .ruff_cache/
+uv.lock
 
 # OS + editor
 .DS_Store

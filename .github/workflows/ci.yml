@@ -1,25 +1,104 @@
 name: CI
+
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
 jobs:
-  test:
+  lint:
+    name: Lint, type-check & security scan
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.10", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: astral-sh/setup-uv@v9
+        with:
+          python-version: "3.13"
+          enable-cache: true
+      - name: Install dev dependencies
+        run: uv sync --extra dev
+      - name: Ruff lint
+        run: uv run ruff check .
+      - name: Ruff format check
+        run: uv run ruff format --check .
+      - name: Mypy type check
+        run: uv run mypy gcode
+      - name: Bandit security scan
+        run: uv run bandit -q -r gcode/ -c pyproject.toml
+      - name: Compile check (package + demo script)
+        run: uv run python -m compileall -q gcode demo
+
+  test:
+    name: Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v9
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
-      - run: pip install --upgrade pip
-      - run: pip install -e .
-      - run: pip install pytest
-      - run: pytest
+          enable-cache: true
+      - name: Install dev dependencies
+        run: uv sync --extra dev
+      - name: Run tests with coverage
+        run: |
+          uv run coverage erase
+          uv run coverage run -m pytest
+          uv run coverage report
+      - name: Upload coverage data
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-py${{ matrix.python-version }}
+          path: .coverage
+          if-no-files-found: error
+          retention-days: 7
+
+  build:
+    name: Build & audit package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v9
+        with:
+          python-version: "3.13"
+          enable-cache: true
+      - name: Install dev dependencies
+        run: uv sync --extra dev
+      - name: Build sdist + wheel
+        run: uv run python -m build
+      - name: Verify package imports
+        run: |
+          uv run python -c "import gcode, gcode.cli, gcode.ui, gcode.tools; print('imports OK')"
+      - name: Verify CLI entry point
+        run: uv run gcode --version
+      - name: Verify version consistency
+        run: |
+          uv run python -c "
+          from importlib.metadata import version
+          from gcode import __version__
+          assert version('gcode') == __version__, f'{version(\"gcode\")} != {__version__}'
+          print('version OK:', __version__)
+          "
+      - name: Audit dependencies for known vulnerabilities
+        run: uv run pip-audit --progress-spinner off
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7

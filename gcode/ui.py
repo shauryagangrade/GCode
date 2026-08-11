@@ -54,7 +54,10 @@ def _summarize_tool(name: str, args: dict) -> str:
     if name == "execute_bash":
         return _truncate(args.get("command", ""), 200)
     if "path" in args:
-        return _truncate(args.get("path"), 120)
+        path = args.get("path", "")
+        if not isinstance(path, str):
+            path = ""
+        return _truncate(path, 120)
     items = ", ".join(f"{k}={_truncate(v, 60)}" for k, v in args.items())
     return _truncate(items, 160)
 
@@ -84,9 +87,7 @@ class RichUI:
             "[dim green]Thanks for coding with GCode.\nKeep building. Keep shipping.[/dim green]"
         )
         self.console.print(
-            Rule(
-                f"[green]session[/green] [dim]::[/dim] [bold green]{session}[/bold green]"
-            )
+            Rule(f"[green]session[/green] [dim]::[/dim] [bold green]{session}[/bold green]")
         )
 
     def _show_slash_menu(self) -> str:
@@ -133,25 +134,21 @@ class RichUI:
             else:
                 event.current_buffer.insert_text("/")
 
-        session = PromptSession(
+        session: PromptSession[str] = PromptSession(
             key_bindings=bindings,
             enable_open_in_editor=False,
             enable_system_prompt=False,
             enable_history_search=False,
         )
 
-        try:
-            # Flush any pending Rich output so prompt_toolkit can take
-            # control of the terminal cleanly (avoids cursor appearing
-            # before the prompt).
-            self.console.file.flush()
-            line = session.prompt(
-                HTML("<ansibold><ansicyan>You:</ansicyan></ansibold> "),
-                mouse_support=False,
-            )
-        except (EOFError, KeyboardInterrupt):
-            raise
-
+        # Flush any pending Rich output so prompt_toolkit can take
+        # control of the terminal cleanly (avoids cursor appearing
+        # before the prompt).
+        self.console.file.flush()
+        line = session.prompt(
+            HTML("<ansibold><ansicyan>You:</ansicyan></ansibold> "),
+            mouse_support=False,
+        )
         if menu_triggered[0]:
             selected_cmd = self._show_slash_menu()
             if selected_cmd:

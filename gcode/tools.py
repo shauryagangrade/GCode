@@ -38,8 +38,8 @@ def execute_bash(command: str) -> str:
         if confirm.strip().lower() != "y":
             return "Command execution cancelled by user."
     try:
-        result = subprocess.run(
-            command, shell=True, capture_output=True, text=True, timeout=BASH_TIMEOUT
+        result = subprocess.run(  # nosec B602 — execute_bash is the tool's purpose; gated by y/n approval
+            command, shell=True, capture_output=True, text=True, timeout=BASH_TIMEOUT, check=False
         )
     except subprocess.TimeoutExpired:
         return f"Command timed out after {BASH_TIMEOUT}s: {command}"
@@ -64,7 +64,7 @@ def read_file(path: str, max_lines: int = 2000) -> str:
     if not os.path.isfile(path):
         return f"File not found: {path}"
     try:
-        with open(path, "r", encoding="utf-8", errors="replace") as f:
+        with open(path, encoding="utf-8", errors="replace") as f:
             lines = f.readlines()
     except Exception as exc:
         return f"Error reading {path}: {exc}"
@@ -92,10 +92,7 @@ def write_file(path: str, content: str, force: bool = False) -> str:
         force: If True, overwrite an existing file.
     """
     if os.path.exists(path) and not force:
-        return (
-            f"Refusing to overwrite existing file {path} (pass force=True to "
-            "overwrite)."
-        )
+        return f"Refusing to overwrite existing file {path} (pass force=True to overwrite)."
     try:
         parent = os.path.dirname(os.path.abspath(path))
         os.makedirs(parent, exist_ok=True)
@@ -108,9 +105,7 @@ def write_file(path: str, content: str, force: bool = False) -> str:
 
 
 @tool
-def edit_file(
-    path: str, old_string: str, new_string: str, replace_all: bool = False
-) -> str:
+def edit_file(path: str, old_string: str, new_string: str, replace_all: bool = False) -> str:
     """Replace text in a file using an exact string match.
 
     Errors if old_string is not found, or (when replace_all is False) if it
@@ -125,7 +120,7 @@ def edit_file(
     if not os.path.isfile(path):
         return f"File not found: {path}"
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             text = f.read()
     except Exception as exc:
         return f"Error reading {path}: {exc}"
@@ -201,7 +196,7 @@ def grep(
             flags.append("-i")
         cmd = [grep_bin, *flags, "--include", glob, "-e", pattern, path]
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60, check=False)
         except subprocess.TimeoutExpired:
             return "grep timed out after 60s."
         if result.returncode == 1:
@@ -257,7 +252,7 @@ def _grep_python(pattern: str, path: str, glob: str, ignore_case: bool = False) 
         if _is_binary(filepath):
             continue
         try:
-            with open(filepath, "r", encoding="utf-8", errors="strict") as f:
+            with open(filepath, encoding="utf-8", errors="strict") as f:
                 for lineno, line in enumerate(f, start=1):
                     if regex.search(line):
                         matches.append(f"{filepath}:{lineno}:{line.rstrip(chr(10))}")
@@ -277,7 +272,7 @@ def git_status() -> str:
 
 
 @tool
-def git_diff(path: str = None) -> str:
+def git_diff(path: str | None = None) -> str:
     """Show staged and unstaged changes, optionally limited to a path.
 
     Args:
@@ -305,7 +300,7 @@ def git_commit(message: str) -> str:
 def _git(args: list) -> str:
     cmd = ["git"] + args
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120, check=False)
     except subprocess.TimeoutExpired:
         return "git command timed out after 120s."
     out = (result.stdout or "").strip()

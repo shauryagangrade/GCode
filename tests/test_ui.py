@@ -1,6 +1,5 @@
-from rich.console import Console
-
 from gcode.ui import RichUI
+from rich.console import Console
 
 
 def test_goodbye_renders_logo_and_session():

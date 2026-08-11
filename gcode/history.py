@@ -25,7 +25,7 @@ def load(session: str = DEFAULT_SESSION):
     if not os.path.isfile(path):
         return None
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
         return messages_from_dict(data)
     except Exception:
@@ -38,7 +38,7 @@ def save(session: str, messages) -> None:
     try:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(messages_to_dict(messages), f, indent=2)
-    except Exception:
+    except Exception:  # noqa: S110  # nosec B110 — persistence is best-effort; never crash the REPL on disk errors
         pass
 
 

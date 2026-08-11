@@ -6,6 +6,8 @@ helpers to detect the server, list locally-installed models, and optionally
 pull new ones.
 """
 
+from typing import Any
+
 import requests
 
 OLLAMA_BASE_URL = "http://localhost:11434"
@@ -55,11 +57,11 @@ def pull_model(model_name: str, ui=None) -> tuple[bool, str]:
     Streams progress to *ui* if provided. Returns ``(success, message)``.
     """
     try:
-        payload = {"name": model_name, "stream": bool(ui)}
+        payload: dict[str, Any] = {"name": model_name, "stream": bool(ui)}
         resp = requests.post(
             f"{OLLAMA_BASE_URL}/api/pull",
             json=payload,
-            timeout=None,  # pulls can take a long time
+            timeout=None,  # nosec B113 — pulls can take a long time; no client-side cutoff
         )
         resp.raise_for_status()
         return True, f"Successfully pulled {model_name}"
@@ -71,8 +73,9 @@ def _format_size(size_bytes: int) -> str:
     """Convert bytes to a human-readable string (e.g. '7.4 GB')."""
     if size_bytes == 0:
         return "unknown"
+    size = float(size_bytes)
     for unit in ("B", "KB", "MB", "GB", "TB"):
-        if abs(size_bytes) < 1024:
-            return f"{size_bytes:.1f} {unit}"
-        size_bytes /= 1024
-    return f"{size_bytes:.1f} PB"
+        if abs(size) < 1024:
+            return f"{size:.1f} {unit}"
+        size /= 1024
+    return f"{size:.1f} PB"

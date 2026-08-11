@@ -180,12 +180,8 @@ def main() -> None:
         prog="gcode", description="GCode — a local, interactive AI coding CLI."
     )
     parser.add_argument("--model", help="Model ID (overrides GCODE_MODEL and default).")
-    parser.add_argument(
-        "--session", default=DEFAULT_SESSION, help="Named session for history."
-    )
-    parser.add_argument(
-        "--yes", action="store_true", help="Auto-approve bash commands (unsafe)."
-    )
+    parser.add_argument("--session", default=DEFAULT_SESSION, help="Named session for history.")
+    parser.add_argument("--yes", action="store_true", help="Auto-approve bash commands (unsafe).")
     parser.add_argument("--version", action="version", version=f"gcode {__version__}")
     args = parser.parse_args()
 

@@ -31,9 +31,7 @@ def list_free_models():
     except requests.exceptions.RequestException as exc:  # network / TLS / timeout
         return [], f"Could not fetch model list: {exc}"
 
-    ids = sorted(
-        m["id"] for m in data.get("data", []) if m.get("id", "").endswith(":free")
-    )
+    ids = sorted(m["id"] for m in data.get("data", []) if m.get("id", "").endswith(":free"))
     return ids, None
 
 

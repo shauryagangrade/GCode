@@ -27,9 +27,7 @@ def test_edit_file_ambiguous():
 
 
 def test_edit_file_not_found():
-    out = edit_file.invoke(
-        {"path": "/no/such/file.txt", "old_string": "x", "new_string": "y"}
-    )
+    out = edit_file.invoke({"path": "/no/such/file.txt", "old_string": "x", "new_string": "y"})
     assert "File not found" in out
 
 
