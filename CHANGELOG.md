@@ -11,6 +11,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 - Dedicated goodbye screen (ASCII logo, closing message, session ID) shown on exit via Ctrl+C/Ctrl+D, `/quit`, or interrupt
+- `/version` slash command to show the installed GCode version from inside a session
 
 ### Changed
 
