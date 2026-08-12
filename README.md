@@ -41,6 +41,7 @@ Commands (start a line with `/`):
 - `/models` — list every free model on OpenRouter
 - `/model <id|#n>` — switch models (use an id, or `#n` from `/models`)
 - `/history` — show recent turns
+- `/status` — quick git status
 - `/clear` — start a fresh session
 - `/quit` — exit
 

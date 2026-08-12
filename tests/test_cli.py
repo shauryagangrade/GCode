@@ -1,6 +1,6 @@
 from unittest.mock import Mock, patch
 
-from gcode.cli import _cmd_diff, _print_help
+from gcode.cli import _cmd_diff, _cmd_status, _print_help
 
 
 def test_cmd_diff_prints_repository_changes():
@@ -20,3 +20,23 @@ def test_help_lists_diff_command():
     help_text = ui.info.call_args.args[0]
     assert "/diff" in help_text
     assert "staged and unstaged git changes" in help_text
+
+
+def test_cmd_status_prints_repository_status():
+    ui = Mock()
+    git_status = Mock()
+    git_status.invoke.return_value = " M gcode/cli.py"
+    with patch("gcode.cli.tool_module.git_status", git_status):
+        _cmd_status(ui)
+
+    git_status.invoke.assert_called_once_with({})
+    ui.print.assert_called_once_with(" M gcode/cli.py", markup=False, highlight=False)
+
+
+def test_help_lists_status_command():
+    ui = Mock()
+    _print_help(ui)
+
+    help_text = ui.info.call_args.args[0]
+    assert "/status" in help_text
+    assert "git status" in help_text

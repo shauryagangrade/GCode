@@ -38,6 +38,7 @@ def _print_help(ui: RichUI) -> None:
         "  /pull <model>    Pull a model from Ollama registry\n"
         "  /setup           Reconfigure API key\n"
         "  /history         Show recent conversation turns\n"
+        "  /status          Show quick git status\n"
         "  /diff            Show staged and unstaged git changes\n"
         "  /clear           Start a fresh session (discard history)\n"
         "  /quit, /exit     Leave GCode\n"
@@ -112,6 +113,12 @@ def _cmd_history(messages, ui: RichUI) -> None:
         ui.print("(no conversation yet)", markup=False)
     else:
         ui.print("\n".join(lines), markup=False, highlight=False)
+
+
+def _cmd_status(ui: RichUI) -> None:
+    """Show the current repository's git status (short form)."""
+    result = tool_module.git_status.invoke({})
+    ui.print(result, markup=False, highlight=False)
 
 
 def _cmd_diff(ui: RichUI) -> None:
@@ -274,6 +281,8 @@ def main() -> None:
                     _cmd_pull(arg, ui)
                 elif cmd == "history":
                     _cmd_history(messages, ui)
+                elif cmd == "status":
+                    _cmd_status(ui)
                 elif cmd == "diff":
                     _cmd_diff(ui)
                 elif cmd == "setup":
