@@ -231,6 +231,7 @@ def build_scenario() -> None:
         "  /models          List available free models\n"
         "  /model <id|#n>   Switch to a model (id, or #n index from /models)\n"
         "  /history         Show recent conversation turns\n"
+        "  /status          Show quick git status\n"
         "  /clear           Start a fresh session (discard history)\n"
         "  /quit, /exit     Leave GCode[/]"
     )
