@@ -1,6 +1,7 @@
 from unittest.mock import Mock, patch
 
-from gcode.cli import _cmd_diff, _print_help
+from gcode import __version__
+from gcode.cli import _cmd_diff, _cmd_version, _print_help
 
 
 def test_cmd_diff_prints_repository_changes():
@@ -20,3 +21,19 @@ def test_help_lists_diff_command():
     help_text = ui.info.call_args.args[0]
     assert "/diff" in help_text
     assert "staged and unstaged git changes" in help_text
+
+
+def test_cmd_version_prints_installed_version():
+    ui = Mock()
+    _cmd_version(ui)
+
+    ui.info.assert_called_once_with(f"GCode v{__version__}")
+
+
+def test_help_lists_version_command():
+    ui = Mock()
+    _print_help(ui)
+
+    help_text = ui.info.call_args.args[0]
+    assert "/version" in help_text
+    assert "installed GCode version" in help_text
