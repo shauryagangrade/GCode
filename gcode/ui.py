@@ -28,6 +28,7 @@ _SLASH_COMMANDS = [
     ("/pull", "Pull a model from Ollama registry"),
     ("/setup", "Reconfigure API key"),
     ("/history", "Show recent conversation turns"),
+    ("/status", "Show quick git status"),
     ("/diff", "Show staged and unstaged git changes"),
     ("/clear", "Start a fresh session (discard history)"),
     ("/quit", "Leave GCode"),
