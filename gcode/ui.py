@@ -12,6 +12,7 @@ from prompt_toolkit.key_binding import KeyBindings
 from rich.console import Console
 from rich.live import Live
 from rich.markdown import Markdown
+from rich.markup import escape
 from rich.rule import Rule
 from rich.spinner import Spinner
 from rich.text import Text
@@ -203,12 +204,12 @@ class RichUI:
 
     def tool_result(self, name: str, result: str) -> None:
         preview = _truncate(result, 600)
-        self.console.print(f"  [dim]✓ {name}:[/] [dim]{preview}[/]")
+        self.console.print(f"  [dim]✓ {name}:[/] [dim]{escape(preview)}[/]")
 
     # -- status / errors ---------------------------------------------------
     def error(self, msg: str) -> None:
         self._stop_live()
-        self.console.print(f"[red]✗ {msg}[/]")
+        self.console.print(f"[red]✗ {escape(msg)}[/]")
 
     def info(self, msg: str) -> None:
         self._stop_live()
