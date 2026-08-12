@@ -228,6 +228,7 @@ def build_scenario() -> None:
         "[cyan bold]You:[/] [cyan]/help[/]\n"
         "[dim]GCode slash commands:\n"
         "  /help            Show this help\n"
+        "  /version         Show the installed GCode version\n"
         "  /models          List available free models\n"
         "  /model <id|#n>   Switch to a model (id, or #n index from /models)\n"
         "  /history         Show recent conversation turns\n"

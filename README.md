@@ -38,6 +38,7 @@ gcode --yes                      # auto-approve bash (unsafe — know what you r
 Commands (start a line with `/`):
 
 - `/help` — show commands
+- `/version` — show the installed GCode version
 - `/models` — list every free model on OpenRouter
 - `/model <id|#n>` — switch models (use an id, or `#n` from `/models`)
 - `/history` — show recent turns

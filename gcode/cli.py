@@ -32,6 +32,7 @@ def _print_help(ui: RichUI) -> None:
     ui.info(
         "GCode slash commands:\n"
         "  /help            Show this help\n"
+        "  /version         Show the installed GCode version\n"
         "  /models          List available models (OpenRouter + Ollama)\n"
         "  /model <id|#n>   Switch to a model (id, or #n index from /models)\n"
         "  /ollama          List/select local Ollama models\n"
@@ -124,6 +125,11 @@ def _cmd_status(ui: RichUI) -> None:
 def _cmd_diff(ui: RichUI) -> None:
     """Show the current repository's staged and unstaged changes."""
     ui.print(tool_module.git_diff.invoke({}), markup=False, highlight=False)
+
+
+def _cmd_version(ui: RichUI) -> None:
+    """Show the installed GCode version."""
+    ui.info(f"GCode v{__version__}")
 
 
 def _cmd_ollama(ui: RichUI) -> str:
@@ -261,6 +267,8 @@ def main() -> None:
                     break
                 elif cmd == "help":
                     _print_help(ui)
+                elif cmd == "version":
+                    _cmd_version(ui)
                 elif cmd == "models":
                     selected_model = _cmd_models(ui)
                     if selected_model:

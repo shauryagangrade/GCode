@@ -21,6 +21,7 @@ _TRUNCATE_STEP = 80  # re-render Markdown only after this many new characters
 # Slash commands available in the interactive menu
 _SLASH_COMMANDS = [
     ("/help", "Show available commands"),
+    ("/version", "Show the installed GCode version"),
     ("/models", "List available models (OpenRouter + Ollama)"),
     ("/model", "Switch to a different model"),
     ("/ollama", "List/select local Ollama models"),
