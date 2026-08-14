@@ -154,3 +154,56 @@ def test_execute_bash_auto_approve_skips_prompt(tmp_path):
         assert "auto-approved" in out
     finally:
         set_auto_approve(AUTO_APPROVE)
+
+
+def test_grep_passes_include_as_one_argument():
+    """The glob must stay attached to --include, as --include=<glob>.
+
+    On Windows the grep on PATH is usually Git for Windows' MSYS build, whose
+    runtime glob-expands a bare "*" argument against the current directory
+    before grep sees it -- so `--include", "*"` becomes `--include <some file
+    in cwd>` and a search of any other directory matches nothing.
+
+    Both spellings behave identically where that runtime is not involved, so
+    this asserts the command shape rather than the result: on a Linux runner a
+    revert would otherwise stay green.
+    """
+    with (
+        patch("gcode.tools.shutil.which", return_value="/usr/bin/grep"),
+        patch("gcode.tools.subprocess.run") as run,
+    ):
+        run.return_value.returncode = 0
+        run.return_value.stdout = ""
+        run.return_value.stderr = ""
+
+        grep.invoke({"pattern": "needle", "path": ".", "glob": "*.py"})
+
+    cmd = run.call_args[0][0]
+    assert "--include=*.py" in cmd
+    assert "--include" not in cmd, "the glob must not be a separate argument"
+
+
+def test_grep_include_defaults_to_everything():
+    """The default glob is still passed, so behaviour is unchanged."""
+    with (
+        patch("gcode.tools.shutil.which", return_value="/usr/bin/grep"),
+        patch("gcode.tools.subprocess.run") as run,
+    ):
+        run.return_value.returncode = 1
+        run.return_value.stdout = ""
+        run.return_value.stderr = ""
+
+        grep.invoke({"pattern": "needle", "path": "."})
+
+    assert "--include=*" in run.call_args[0][0]
+
+
+def test_grep_filters_by_glob(tmp_path):
+    """End-to-end: the glob still selects files rather than being ignored."""
+    (tmp_path / "a.txt").write_text("needle in text\n")
+    (tmp_path / "b.py").write_text("needle in python\n")
+
+    out = grep.invoke({"pattern": "needle", "path": str(tmp_path), "glob": "*.py"})
+
+    assert "needle in python" in out
+    assert "needle in text" not in out
