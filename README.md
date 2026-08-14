@@ -11,6 +11,17 @@ codebase, and work with git.
 
 ![GCode demo](docs/demo.gif)
 
+## Contributing
+
+GCode is community-built, and contributions of every kind are welcome — bug
+reports, docs, tests, and features.
+
+- **First-time contributor?** Start with a
+  [good first issue](https://github.com/shauryagangrade/GCode/labels/good%20first%20issue).
+- Need more context? Browse the
+  [help wanted](https://github.com/shauryagangrade/GCode/labels/help%20wanted) issues.
+- Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+
 ## Install
 
 ```bash
