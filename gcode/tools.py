@@ -216,7 +216,12 @@ def grep(
     """
     grep_bin = shutil.which("grep")
     if grep_bin:
-        flags = ["-rnI"]
+        # -H forces the filename prefix even on a single-file target: without
+        # it GNU grep drops the prefix when there is one input, while the
+        # pure-Python fallback always prints it, so the same search would
+        # return differently shaped output depending on whether grep is
+        # installed.
+        flags = ["-rnIH"]
         if ignore_case:
             flags.append("-i")
         # --include=<glob>, not --include <glob>: on Windows the grep on PATH

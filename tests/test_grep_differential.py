@@ -26,16 +26,6 @@ _LINE = re.compile(r"^(.*?):(\d+):(.*)$")
 grep_bin = shutil.which("grep")
 requires_grep = pytest.mark.skipif(grep_bin is None, reason="no grep binary on PATH")
 
-_grep_version = (
-    subprocess.run([grep_bin, "--version"], capture_output=True, text=True, check=False).stdout
-    if grep_bin
-    else ""
-)
-requires_gnu_grep = pytest.mark.skipif(
-    "GNU grep" not in _grep_version,
-    reason="GNU grep only: BSD grep keeps the filename prefix on a single-file target",
-)
-
 
 @pytest.fixture
 def corpus(tmp_path):
@@ -58,10 +48,8 @@ def corpus(tmp_path):
 
 def _reference(pattern, path, glob="*", ignore_case=False):
     """Run the system grep the way the grep tool does, as a set of matches."""
-    # -H so a single-file target still prints its name. GNU grep drops the
-    # prefix when there is only one input; _grep_python always emits it. That
-    # divergence is real and is pinned in its own test below -- forcing the
-    # prefix here keeps *this* comparison about which lines matched.
+    # -H so a single-file target still prints its name. The tool passes the
+    # same flag, so the raw grep here mirrors the tool exactly.
     flags = ["-rnIH"]
     if ignore_case:
         flags.append("-i")
@@ -176,29 +164,20 @@ def test_single_file_target_agrees(corpus):
 
 
 @requires_grep
-@requires_gnu_grep
-def test_single_file_output_format_diverges(corpus):
-    """A real difference this comparison surfaced -- recorded, not fixed here.
+def test_single_file_output_format_is_consistent(corpus):
+    """Single-file output must not depend on which engine handles it.
 
-    Given one file rather than a directory, GNU grep drops the filename prefix
-    and emits "1:needle at the top"; _grep_python always emits
-    "<path>:1:needle at the top". So `grep(pattern, path="a.txt")` returns a
-    different shape depending on whether a grep binary happens to be installed
-    -- which is the class of drift #63 exists to catch.
-
-    Pinned rather than fixed: aligning them changes the grep tool's output and
-    is a call for the maintainer, not a drive-by in a test-only change. Adding
-    -H to the tool's flags would do it.
+    Before the -H fix this was the classic divergence: GNU grep drops the
+    filename prefix when there is one input ("1:needle at the top"), while
+    _grep_python always emits "<path>:1:needle at the top". The tool passes
+    -H specifically so both shapes match; this guards the regression.
     """
+    from gcode.tools import grep as grep_tool
+
     target = corpus / "top.txt"
 
+    tool_side = grep_tool.invoke({"pattern": "needle", "path": str(target)})
     python_side = _grep_python("needle", str(target), "*", False)
-    binary_side = subprocess.run(
-        [grep_bin, "-rnI", "--include=*", "-e", "needle", str(target)],
-        capture_output=True,
-        text=True,
-        check=False,
-    ).stdout
 
-    assert python_side.startswith(str(target))
-    assert binary_side.startswith("1:")
+    assert tool_side == python_side
+    assert tool_side.startswith(str(target))

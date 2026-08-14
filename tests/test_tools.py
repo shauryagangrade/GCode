@@ -198,6 +198,26 @@ def test_grep_include_defaults_to_everything():
     assert "--include=*" in run.call_args[0][0]
 
 
+def test_grep_passes_H_for_consistent_single_file_output():
+    """-H must stay in the flags so single-file output is never prefixed-less.
+
+    Without it GNU grep drops the filename prefix for a single-file target
+    while the pure-Python fallback always prints it, making `grep` return
+    differently shaped output depending on whether a grep binary is installed.
+    """
+    with (
+        patch("gcode.tools.shutil.which", return_value="/usr/bin/grep"),
+        patch("gcode.tools.subprocess.run") as run,
+    ):
+        run.return_value.returncode = 0
+        run.return_value.stdout = ""
+        run.return_value.stderr = ""
+
+        grep.invoke({"pattern": "needle", "path": "."})
+
+    assert "-rnIH" in run.call_args[0][0]
+
+
 def test_grep_filters_by_glob(tmp_path):
     """End-to-end: the glob still selects files rather than being ignored."""
     (tmp_path / "a.txt").write_text("needle in text\n")
