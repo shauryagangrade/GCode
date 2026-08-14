@@ -1,0 +1,23 @@
+# Mirrors the lint job in .github/workflows/ci.yml (ruff check, ruff format,
+# mypy) so contributors get the same checks locally before pushing.
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check .
+        language: system
+        types: [python]
+        pass_filenames: false
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format --check .
+        language: system
+        types: [python]
+        pass_filenames: false
+      - id: mypy
+        name: mypy type check
+        entry: uv run mypy gcode
+        language: system
+        types: [python]
+        pass_filenames: false

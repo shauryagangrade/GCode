@@ -20,6 +20,7 @@ dev = [
     "coverage>=7",
     "mypy>=1.13",
     "pip-audit>=2.7",
+    "pre-commit>=4.0",
     "pytest>=8",
     "ruff>=0.9",
 ]
