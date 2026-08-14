@@ -104,9 +104,7 @@ def test_list_free_models_parses_catalog(mock_get):
 )
 def test_list_all_models_includes_ollama_entries(mock_ollama, _free, _running):
     all_models = list_all_models()
-    assert all_models == [
-        {"id": "ollama/llama3.2", "source": "ollama", "size": "4.7GB"}
-    ]
+    assert all_models == [{"id": "ollama/llama3.2", "source": "ollama", "size": "4.7GB"}]
 
 
 @patch("gcode.models.is_ollama_running", return_value=False)
