@@ -3,7 +3,7 @@ import os
 from unittest.mock import patch
 
 from gcode import history
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
 
 def test_path_sanitization(tmp_path, monkeypatch):
@@ -34,6 +34,28 @@ def test_save_and_load_round_trip(tmp_path, monkeypatch):
     assert loaded[1].content == "Hello"
     assert isinstance(loaded[2], AIMessage)
     assert loaded[2].content == "Hi there!"
+
+
+def test_save_and_load_tool_call_round_trip(tmp_path, monkeypatch):
+    monkeypatch.setattr(history, "BASE_DIR", str(tmp_path))
+    messages = [
+        HumanMessage(content="Find the word foo"),
+        AIMessage(
+            content="",
+            tool_calls=[{"name": "grep", "args": {"pattern": "foo"}, "id": "call_1"}],
+        ),
+        ToolMessage(content="foo found at line 1", tool_call_id="call_1"),
+    ]
+    history.save("tool_session", messages)
+
+    loaded = history.load("tool_session")
+    assert loaded is not None
+    assert len(loaded) == 3
+    assert isinstance(loaded[1], AIMessage)
+    assert loaded[1].tool_calls[0]["name"] == "grep"
+    assert loaded[1].tool_calls[0]["id"] == "call_1"
+    assert isinstance(loaded[2], ToolMessage)
+    assert loaded[2].tool_call_id == "call_1"
 
 
 def test_save_and_load_default_session(tmp_path, monkeypatch):
