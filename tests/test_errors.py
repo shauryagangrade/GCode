@@ -1,4 +1,9 @@
-from gcode.errors import format_model_error
+from gcode.errors import (
+    format_model_error,
+    missing_api_key_message,
+    network_error_message,
+    unknown_model_message,
+)
 
 
 class _FakeExc:
@@ -44,3 +49,27 @@ def test_format_404_tool_use():
 def test_format_fallback_to_str():
     out = format_model_error(ValueError("something broke"))
     assert out == "something broke"
+
+
+def test_missing_api_key_message_suggests_setup_and_env():
+    out = missing_api_key_message()
+    assert "Run /setup" in out
+    assert "OPENROUTER_API_KEY" in out
+    assert "~/.gcode/.env" in out
+    assert "openrouter.ai/keys" in out
+
+
+def test_network_error_message_suggests_checks():
+    out = network_error_message("fetch the OpenRouter model list", TimeoutError("timed out"))
+    assert "Could not fetch the OpenRouter model list" in out
+    assert "internet connection" in out
+    assert "proxy settings" in out
+    assert "timed out" in out
+
+
+def test_unknown_model_message_suggests_models_command():
+    out = unknown_model_message("gpt-4")
+    assert "Unknown model: 'gpt-4'" in out
+    assert "/models" in out
+    assert "/model <full-id>" in out
+    assert "qwen/qwen3-coder:free" in out

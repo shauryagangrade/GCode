@@ -72,3 +72,43 @@ def test_help_has_categorized_groups():
     assert "/models" in help_text
     assert "/history" in help_text
     assert "/diff" in help_text
+
+
+def test_report_no_models_network_error_path():
+    from gcode.cli import _report_no_models
+
+    ui = Mock()
+    catalog_err = "Could not fetch the OpenRouter model list: network error."
+    with patch("gcode.cli.list_free_models", return_value=([], catalog_err)):
+        _report_no_models(ui)
+
+    assert ui.error.call_args.args[0] == catalog_err
+    assert "Ollama" in ui.info.call_args.args[0]
+
+
+def test_report_no_models_ollama_running_no_models():
+    from gcode.cli import _report_no_models
+
+    ui = Mock()
+    with (
+        patch("gcode.cli.list_free_models", return_value=([], None)),
+        patch("gcode.cli.is_ollama_running", return_value=True),
+    ):
+        _report_no_models(ui)
+
+    assert "No models found locally" in ui.error.call_args.args[0]
+    assert "/pull" in ui.info.call_args.args[0]
+
+
+def test_report_no_models_neither_source():
+    from gcode.cli import _report_no_models
+
+    ui = Mock()
+    with (
+        patch("gcode.cli.list_free_models", return_value=([], None)),
+        patch("gcode.cli.is_ollama_running", return_value=False),
+    ):
+        _report_no_models(ui)
+
+    assert "No model source is reachable" in ui.error.call_args.args[0]
+    assert "Ollama" in ui.info.call_args.args[0]

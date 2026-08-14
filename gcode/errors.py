@@ -1,7 +1,38 @@
-"""Parse provider/API errors into readable messages (no raw JSON)."""
+"""Parse provider/API errors into readable, actionable messages.
+
+Everything that formats a user-facing error lives here so the CLI stays
+consistent: provider/API failures, missing API keys, network problems, and
+unrecognized model ids all get a stable, suggested-next-step message.
+"""
 
 import json
 from contextlib import suppress
+
+OPENROUTER_KEYS_URL = "https://openrouter.ai/keys"
+
+
+def missing_api_key_message() -> str:
+    """Actionable message when no API key is configured."""
+    return (
+        "No API key provided. Run /setup to configure one, or set "
+        f"OPENROUTER_API_KEY in ~/.gcode/.env (get a free key at {OPENROUTER_KEYS_URL})."
+    )
+
+
+def network_error_message(action: str, exc) -> str:
+    """Actionable message for a network failure reaching a remote API."""
+    return (
+        f"Could not {action}: network error. Check your internet connection "
+        f"and proxy settings, then try again. ({exc})"
+    )
+
+
+def unknown_model_message(text: str) -> str:
+    """Actionable message for an unrecognized model id."""
+    return (
+        f"Unknown model: {text!r}. Use /models to list available models, or "
+        "/model <full-id> (e.g. qwen/qwen3-coder:free)."
+    )
 
 
 def _extract_error(obj):

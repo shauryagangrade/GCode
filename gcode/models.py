@@ -8,6 +8,7 @@ Also supports Ollama local models — see gcode.ollama.
 
 import requests
 
+from gcode.errors import network_error_message, unknown_model_message
 from gcode.ollama import is_ollama_running, list_local_models
 
 OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
@@ -35,7 +36,7 @@ def list_free_models():
         resp.raise_for_status()
         data = resp.json()
     except requests.exceptions.RequestException as exc:  # network / TLS / timeout
-        return [], f"Could not fetch model list: {exc}"
+        return [], network_error_message("fetch the OpenRouter model list", exc)
 
     entries = []
     for m in data.get("data", []):
@@ -133,4 +134,4 @@ def resolve_model_id(text, all_models=None):
     if text.startswith("ollama/"):
         return text, None
 
-    return None, f"Unknown model: {text}"
+    return None, unknown_model_message(text)
