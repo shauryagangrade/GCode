@@ -85,6 +85,28 @@ def test_load_corrupt_json(tmp_path, monkeypatch):
     assert result is None
 
 
+def test_load_corrupt_json_warns_with_path(tmp_path, monkeypatch, capsys):
+    """A corrupt session file must warn and name the path, not silently vanish."""
+    monkeypatch.setattr(history, "BASE_DIR", str(tmp_path))
+    filepath = history._path("corrupt_warn_session")
+    with open(filepath, "w", encoding="utf-8") as f:
+        f.write("{ invalid json content ...")
+
+    result = history.load("corrupt_warn_session")
+    assert result is None
+    err = capsys.readouterr().err
+    assert filepath in err
+    assert "corrupt" in err
+
+
+def test_load_missing_file_no_warning(tmp_path, monkeypatch, capsys):
+    """A missing session file stays silent (no history yet is not an error)."""
+    monkeypatch.setattr(history, "BASE_DIR", str(tmp_path))
+    result = history.load("never_saved_session")
+    assert result is None
+    assert capsys.readouterr().err == ""
+
+
 def test_load_invalid_message_dict(tmp_path, monkeypatch):
     monkeypatch.setattr(history, "BASE_DIR", str(tmp_path))
     filepath = history._path("invalid_msg_session")
@@ -118,9 +140,18 @@ def test_clear_default_session(tmp_path, monkeypatch):
     assert not os.path.isfile(history._path(history.DEFAULT_SESSION))
 
 
-def test_save_write_failure_resilience(tmp_path, monkeypatch):
+def test_save_write_failure_resilience(tmp_path, monkeypatch, capsys):
+    """A failed save must warn, never raise, and leave no partial session file."""
     monkeypatch.setattr(history, "BASE_DIR", str(tmp_path))
     messages = [HumanMessage(content="Test")]
-    with patch("builtins.open", side_effect=OSError("Disk full or permission denied")):
+    with patch("gcode.history.os.replace", side_effect=OSError("Disk full or permission denied")):
         # Should not raise exception
         history.save("fail_session", messages)
+
+    path = history._path("fail_session")
+    assert not os.path.isfile(path)  # no partial file at the real path
+    leftovers = [name for name in os.listdir(tmp_path) if name.endswith(".tmp")]
+    assert leftovers == []  # temp file cleaned up
+    err = capsys.readouterr().err
+    assert "could not save session history" in err
+    assert path in err
