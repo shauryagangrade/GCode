@@ -8,11 +8,12 @@
 git clone https://github.com/shauryagangrade/GCode.git
 cd GCode
 pip install -e .
-cp .env.example .env
+mkdir -p ~/.gcode && cp .env.example ~/.gcode/.env
 gcode
 ```
 
-You will need an OpenRouter API key. Copy the `.env.example` file, name it `.env`, and fill in your `OPENROUTER_API_KEY`.
+You will need an OpenRouter API key. Copy the `.env.example` file to
+`~/.gcode/.env` and fill in your `OPENROUTER_API_KEY`.
 
 ---
 
