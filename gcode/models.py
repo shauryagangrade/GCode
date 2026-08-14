@@ -6,6 +6,8 @@ live catalog and let the user list/switch among every real `:free` model.
 Also supports Ollama local models — see gcode.ollama.
 """
 
+import time
+
 import requests
 
 from gcode.errors import network_error_message, unknown_model_message
@@ -14,8 +16,20 @@ from gcode.ollama import is_ollama_running, list_local_models
 OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
 DEFAULT_MODEL = "qwen/qwen3-coder:free"
 
+# In-process cache for the OpenRouter catalog so repeated calls (startup +
+# /models) inside the TTL reuse the last successful response instead of a
+# network round-trip every time. Stores ``(fetched_at_monotonic, entries)``.
+_MODEL_CACHE_TTL_SECONDS = 30 * 60  # 30 minutes
+_model_catalog_cache: tuple[float, list] | None = None
 
-def list_free_models():
+
+def clear_model_catalog_cache() -> None:
+    """Drop the in-process catalog cache (mainly for tests)."""
+    global _model_catalog_cache
+    _model_catalog_cache = None
+
+
+def list_free_models(ttl_seconds: int = _MODEL_CACHE_TTL_SECONDS):
     """Return (list_of_free_model_entries, error_or_None).
 
     Best-effort: on a network failure the list is empty and ``error`` explains
@@ -26,7 +40,17 @@ def list_free_models():
     ``supported_parameters`` (True when the model advertises ``tools``). Note
     ``supports_tools`` reflects the advertised capability, not a guarantee that
     the model works with GCode's tool schema.
+
+    Successful responses are cached in-process for ``ttl_seconds`` (default 30
+    minutes); pass ``ttl_seconds=0`` to force a fresh fetch. A failed fetch is
+    never cached, so the next call retries.
     """
+    global _model_catalog_cache
+    if ttl_seconds > 0 and _model_catalog_cache is not None:
+        fetched_at, entries = _model_catalog_cache
+        if time.monotonic() - fetched_at < ttl_seconds:
+            return list(entries), None
+
     try:
         resp = requests.get(
             OPENROUTER_MODELS_URL,
@@ -51,6 +75,8 @@ def list_free_models():
             }
         )
     entries.sort(key=lambda entry: entry["id"])
+    if ttl_seconds > 0:
+        _model_catalog_cache = (time.monotonic(), list(entries))
     return entries, None
 
 

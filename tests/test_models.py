@@ -1,7 +1,21 @@
+import time
 from unittest.mock import patch
 
+import pytest
 from gcode.cli import _model_label
-from gcode.models import list_all_models, list_free_models
+from gcode.models import (
+    clear_model_catalog_cache,
+    list_all_models,
+    list_free_models,
+)
+
+
+@pytest.fixture(autouse=True)
+def _isolated_catalog_cache():
+    """Each test starts with an empty catalog cache."""
+    clear_model_catalog_cache()
+    yield
+    clear_model_catalog_cache()
 
 
 def test_model_label_openrouter_shows_context_and_tools():
@@ -142,6 +156,76 @@ def test_list_free_models_network_error_is_actionable(mock_get):
     assert "Could not fetch the OpenRouter model list" in err
     assert "internet connection" in err
     assert "boom" in err
+
+
+@patch("gcode.models.requests.get")
+def test_list_free_models_reuses_cache_within_ttl(mock_get):
+    """Two calls inside the TTL make exactly one HTTP request."""
+    mock_get.return_value.raise_for_status.return_value = None
+    mock_get.return_value.json.return_value = SAMPLE_CATALOG
+
+    first, err1 = list_free_models()
+    second, err2 = list_free_models()
+
+    assert err1 is None and err2 is None
+    assert first == second
+    assert mock_get.call_count == 1
+
+
+@patch("gcode.models.requests.get")
+def test_list_free_models_refetches_after_ttl_expiry(mock_get):
+    """The cache is invalidated once the TTL elapses (real clock)."""
+    mock_get.return_value.raise_for_status.return_value = None
+    mock_get.return_value.json.return_value = SAMPLE_CATALOG
+
+    list_free_models(ttl_seconds=1)
+    assert mock_get.call_count == 1
+
+    time.sleep(1.1)
+    list_free_models(ttl_seconds=1)
+    assert mock_get.call_count == 2
+
+
+@patch("gcode.models.requests.get")
+def test_list_free_models_ttl_zero_forces_fresh_fetch(mock_get):
+    """ttl_seconds=0 bypasses the cache entirely (escape hatch)."""
+    mock_get.return_value.raise_for_status.return_value = None
+    mock_get.return_value.json.return_value = SAMPLE_CATALOG
+
+    list_free_models()  # populates the cache
+    list_free_models(ttl_seconds=0)
+
+    assert mock_get.call_count == 2
+
+
+@patch("gcode.models.requests.get")
+def test_list_free_models_failure_is_not_cached(mock_get):
+    """A failed fetch is never cached, so the next call retries."""
+    import requests
+
+    mock_get.side_effect = requests.exceptions.ConnectionError("boom")
+
+    entries, err = list_free_models()
+    assert entries == [] and err is not None
+
+    # Second call retries (nothing was cached) rather than returning a stale error.
+    mock_get.side_effect = requests.exceptions.Timeout("slow")
+    _, err2 = list_free_models()
+    assert "slow" in err2
+    assert mock_get.call_count == 2
+
+
+@patch("gcode.models.requests.get")
+def test_list_free_models_returns_a_copy_not_the_cache(mock_get):
+    """Callers can mutate the returned list without corrupting the cache."""
+    mock_get.return_value.raise_for_status.return_value = None
+    mock_get.return_value.json.return_value = SAMPLE_CATALOG
+
+    entries, _ = list_free_models()
+    entries.append({"id": "junk"})
+
+    again, _ = list_free_models()
+    assert all(e["id"] != "junk" for e in again)
 
 
 def test_resolve_model_id_unknown_suggests_models():
