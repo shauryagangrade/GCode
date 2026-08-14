@@ -57,6 +57,7 @@ jobs:
           uv run coverage erase
           uv run coverage run -m pytest
           uv run coverage report
+          uv run coverage xml
       - name: Upload coverage data
         if: always()
         uses: actions/upload-artifact@v7
@@ -66,6 +67,11 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v6
+        with:
+          files: coverage.xml
+          fail_ci_if_error: false
 
   build:
     name: Build & audit package
