@@ -26,6 +26,16 @@ _LINE = re.compile(r"^(.*?):(\d+):(.*)$")
 grep_bin = shutil.which("grep")
 requires_grep = pytest.mark.skipif(grep_bin is None, reason="no grep binary on PATH")
 
+_grep_version = (
+    subprocess.run([grep_bin, "--version"], capture_output=True, text=True, check=False).stdout
+    if grep_bin
+    else ""
+)
+requires_gnu_grep = pytest.mark.skipif(
+    "GNU grep" not in _grep_version,
+    reason="GNU grep only: BSD grep keeps the filename prefix on a single-file target",
+)
+
 
 @pytest.fixture
 def corpus(tmp_path):
@@ -166,6 +176,7 @@ def test_single_file_target_agrees(corpus):
 
 
 @requires_grep
+@requires_gnu_grep
 def test_single_file_output_format_diverges(corpus):
     """A real difference this comparison surfaced -- recorded, not fixed here.
 
