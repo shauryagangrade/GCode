@@ -116,3 +116,39 @@ def test_grep_python_fallback_skips_binary_files(tmp_path):
     out = _grep_python("needle", str(tmp_path), "*")
     assert "text.txt" in out
     assert "bin.dat" not in out
+
+
+def test_execute_bash_cancels_on_eof():
+    from gcode.tools import execute_bash
+
+    with patch("builtins.input", side_effect=EOFError):
+        out = execute_bash.invoke({"command": "echo hi"})
+    assert out == "Command execution cancelled by user."
+
+
+def test_execute_bash_cancels_on_keyboard_interrupt():
+    from gcode.tools import execute_bash
+
+    with patch("builtins.input", side_effect=KeyboardInterrupt):
+        out = execute_bash.invoke({"command": "echo hi"})
+    assert out == "Command execution cancelled by user."
+
+
+def test_execute_bash_rejects_non_yes_answer():
+    from gcode.tools import execute_bash
+
+    with patch("builtins.input", return_value="n"):
+        out = execute_bash.invoke({"command": "echo hi"})
+    assert out == "Command execution cancelled by user."
+
+
+def test_execute_bash_auto_approve_skips_prompt(tmp_path):
+    from gcode.tools import AUTO_APPROVE, execute_bash, set_auto_approve
+
+    set_auto_approve(True)
+    try:
+        with patch("builtins.input", side_effect=AssertionError("must not prompt")):
+            out = execute_bash.invoke({"command": "echo auto-approved"})
+        assert "auto-approved" in out
+    finally:
+        set_auto_approve(AUTO_APPROVE)

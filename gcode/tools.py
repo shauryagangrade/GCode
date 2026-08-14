@@ -30,11 +30,16 @@ def execute_bash(command: str) -> str:
     """Execute a bash command on the local machine and return its output.
 
     Requires interactive confirmation (y/n) before running unless auto-approve
-    is enabled. Returns combined stdout and stderr, and reports a non-zero exit
-    code if the command fails.
+    is enabled. In non-interactive environments (CI, Docker, pipes) the command
+    is rejected rather than hanging or crashing; enable auto-approve to run.
+    Returns combined stdout and stderr, and reports a non-zero exit code if the
+    command fails.
     """
     if not AUTO_APPROVE:
-        confirm = input(f"GCode wants to run: {command}\nApprove? (y/n): ")
+        try:
+            confirm = input(f"GCode wants to run: {command}\nApprove? (y/n): ")
+        except (EOFError, KeyboardInterrupt):
+            return "Command execution cancelled by user."
         if confirm.strip().lower() != "y":
             return "Command execution cancelled by user."
     try:
