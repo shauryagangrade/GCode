@@ -1,13 +1,18 @@
 #!/usr/bin/env python3.13
 """Generate a scripted demo GIF for GCode.
 
-This does NOT call a real LLM. It replays a realistic GCode session by
-reusing GCode's *exact* visual language (the same Rich markup found in
-``gcode/ui.py``): cyan banner, cyan ``You:`` prompt, cyan ``⏺ tool(args)``
-lines, dim ``✓ tool: …`` results, the yellow bash ``y/n`` gate, and token
--by-token streaming. Each tick re-renders the full screen to a virtual
-terminal (pyte) and is exported as a PNG frame; ffmpeg then encodes the
-frames into ``../docs/demo.gif``.
+This is a legacy, self-contained renderer: it does NOT call a real LLM. It
+replays a realistic GCode session by reusing GCode's *exact* visual language
+(the same Rich markup found in ``gcode/ui.py``): cyan banner, cyan ``You:``
+prompt, cyan ``⏺ tool(args)`` lines, dim ``✓ tool: …`` results, the yellow
+bash ``y/n`` gate, and token-by-token streaming. Each tick re-renders the
+full screen to a virtual terminal (pyte) and is exported as a PNG frame;
+ffmpeg then encodes the frames into ``docs/demo.gif``.
+
+Note: the current demo pipeline uses vhs (``vhs demo/demo.tape`` →
+``docs/demo.gif``, see README "Demo GIF"). This script is kept because it
+reproduces the exact Rich markup of ``_print_help`` and is useful for
+verifying /help snapshot changes.
 
 Requires: pip install pyte pillow  (rich comes with gcode)
 Run:        python3.13 demo/make_demo.py
@@ -226,19 +231,24 @@ def build_scenario() -> None:
         "cwd: ~/Projects/GCode   session: demo ──[/]\n"
         "[dim]Type /help for commands. Ctrl-D or /quit to exit.[/]\n"
         "[cyan bold]You:[/] [cyan]/help[/]\n"
-        "[dim]GCode slash commands:\n\n"
+        "[dim][bold]GCode slash commands:[/bold]\n"
         "[bold cyan]General[/bold cyan]\n"
         "  /help            Show this help\n"
         "  /version         Show the installed GCode version\n"
-        "  /quit, /exit     Leave GCode\n\n"
+        "  /quit, /exit     Leave GCode\n"
         "[bold cyan]Model[/bold cyan]\n"
-        "  /models          List available free models\n"
-        "  /model <id|#n>   Switch to a model (id, or #n index from /models)\n\n"
+        "  /models          List available models (OpenRouter + Ollama)\n"
+        "  /model <id|#n>   Switch to a model (id, or #n index from /models)\n"
+        "  /ollama          List/select local Ollama models\n"
+        "  /pull <model>    Pull a model from Ollama registry\n"
         "[bold cyan]Session[/bold cyan]\n"
         "  /history         Show recent conversation turns\n"
-        "  /clear           Start a fresh session (discard history)\n\n"
+        "  /clear           Start a fresh session (discard history)\n"
+        "  /setup           Reconfigure API key\n"
         "[bold cyan]Git[/bold cyan]\n"
-        "  /status          Show quick git status[/]"
+        "  /status          Show quick git status\n"
+        "  /diff            Show staged and unstaged git changes[/]\n"
+        "Any other input is sent to the agent."
     )
     snap("/help output")
     hold(IDLE_FRAMES)
