@@ -51,6 +51,21 @@ claims them, so pick an unreserved issue instead.
 - Write clean, readable code with descriptive variable names.
 - Ensure all tests pass before opening a PR.
 
+## Pre-commit Hooks
+
+Install the hooks once so lint, formatting, and type checks run before every
+commit (they mirror the CI lint job):
+
+```bash
+uv run pre-commit install
+```
+
+Run them on the whole tree any time with:
+
+```bash
+uv run pre-commit run --all-files
+```
+
 ---
 
 ## PR Guidelines
