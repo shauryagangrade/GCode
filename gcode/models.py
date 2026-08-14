@@ -22,7 +22,9 @@ def list_free_models():
 
     Each entry is a dict with ``id``, the OpenRouter ``context_length`` (token
     window) when known, and ``supports_tools`` derived from the catalog's
-    ``supported_parameters`` (True when the model advertises ``tools``).
+    ``supported_parameters`` (True when the model advertises ``tools``). Note
+    ``supports_tools`` reflects the advertised capability, not a guarantee that
+    the model works with GCode's tool schema.
     """
     try:
         resp = requests.get(

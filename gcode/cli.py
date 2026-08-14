@@ -63,7 +63,12 @@ def _model_label(m: dict) -> str:
         return f"{m['id']}  {source_tag}{size_tag}"
 
     ctx = m.get("context_length") or 0
-    ctx_tag = f" ({ctx // 1000}k ctx)" if ctx >= 1000 else ""
+    if ctx >= 1000:
+        ctx_k = ctx / 1000
+        text = f"{ctx_k:.1f}".rstrip("0").rstrip(".") if ctx_k % 1 else f"{ctx_k:.0f}"
+        ctx_tag = f" ({text}k ctx)"
+    else:
+        ctx_tag = ""
     tools_tag = " [tools]" if m.get("supports_tools") else ""
     return f"{m['id']}  {source_tag}{ctx_tag}{tools_tag}"
 

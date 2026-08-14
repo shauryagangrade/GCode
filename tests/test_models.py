@@ -40,6 +40,18 @@ def test_model_label_openrouter_hides_context_below_1000():
     assert label == "tiny/model:free  [openrouter]"
 
 
+def test_model_label_openrouter_shows_fractional_context():
+    label = _model_label(
+        {
+            "id": "vendor/x:free",
+            "source": "openrouter",
+            "context_length": 32768,
+            "supports_tools": False,
+        }
+    )
+    assert label == "vendor/x:free  [openrouter] (32.8k ctx)"
+
+
 def test_model_label_ollama_shows_size():
     label = _model_label({"id": "ollama/llama3.2", "source": "ollama", "size": "4.7GB"})
     assert label == "ollama/llama3.2  [ollama] (4.7GB)"
@@ -84,11 +96,17 @@ def test_list_free_models_parses_catalog(mock_get):
     assert entries[2]["supports_tools"] is False
 
 
-@patch("gcode.models.is_ollama_running", return_value=False)
+@patch("gcode.models.is_ollama_running", return_value=True)
 @patch("gcode.models.list_free_models", return_value=([], None))
-def test_list_all_models_openrouter_entries_carry_enrichment(_free, _ollama):
+@patch(
+    "gcode.models.list_local_models",
+    return_value=([{"name": "llama3.2", "size": "4.7GB"}], None),
+)
+def test_list_all_models_includes_ollama_entries(mock_ollama, _free, _running):
     all_models = list_all_models()
-    assert all_models == []
+    assert all_models == [
+        {"id": "ollama/llama3.2", "source": "ollama", "size": "4.7GB"}
+    ]
 
 
 @patch("gcode.models.is_ollama_running", return_value=False)
