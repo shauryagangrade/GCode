@@ -25,6 +25,15 @@ def set_auto_approve(value: bool) -> None:
     AUTO_APPROVE = value
 
 
+def is_auto_approve() -> bool:
+    """Return whether bash auto-approval is currently enabled.
+
+    Read at call time so modules that imported the module (rather than the
+    value) always see the latest setting.
+    """
+    return AUTO_APPROVE
+
+
 @tool
 def execute_bash(command: str) -> str:
     """Execute a bash command on the local machine and return its output.

@@ -6,7 +6,7 @@ from pydantic import SecretStr
 
 from gcode.errors import format_model_error
 from gcode.ollama import OLLAMA_V1_URL
-from gcode.tools import AUTO_APPROVE, TOOL_MAP
+from gcode.tools import TOOL_MAP, is_auto_approve
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 MAX_HISTORY = 30
@@ -81,7 +81,7 @@ def _stream(messages: list, model, ui) -> AIMessage:
 
 def _run_tool(tool_name: str, tool_args: dict, ui) -> str:
     ui.tool_start(tool_name, tool_args)
-    if tool_name == "execute_bash" and not AUTO_APPROVE:
+    if tool_name == "execute_bash" and not is_auto_approve():
         if not ui.ask_permission("Run this command?"):
             result = "Command execution cancelled by user."
             ui.tool_result(tool_name, result)
