@@ -39,6 +39,30 @@ OPENROUTER_API_KEY=sk-or-...
 Get one at https://openrouter.ai/keys. (`OPENAI_API_KEY` is also accepted as a
 fallback.)
 
+## Configuration file
+
+GCode reads optional settings from a `.gcoderc` file (in the project root, or
+`~/.gcode/.gcoderc` for user-wide defaults). The format is simple `key = value`
+lines with `#` comments. Command-line flags and environment variables still
+take precedence over the file.
+
+```
+# .gcoderc
+model = qwen/qwen3-coder:free
+auto_approve = false
+bash_timeout = 300
+system_prompt = You are GCode, a coding agent.
+```
+
+Supported keys:
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `model` | string | first free model | Default model id (overridden by `--model` / `GCODE_MODEL`) |
+| `auto_approve` | bool | `false` | Skip bash confirmation (overridden by `--yes`) |
+| `bash_timeout` | int | `300` | Seconds before a bash command is killed |
+| `system_prompt` | string | built-in | Custom system prompt for new sessions |
+
 ## Use
 
 ```bash

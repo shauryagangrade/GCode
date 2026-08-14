@@ -10,6 +10,13 @@ from langchain_core.messages import SystemMessage
 from gcode import __version__
 from gcode import tools as tool_module
 from gcode.agent import build_model, run_turn, trim_history
+from gcode.config import (
+    load_config,
+    resolve_auto_approve,
+    resolve_bash_timeout,
+    resolve_model,
+    resolve_system_prompt,
+)
 from gcode.errors import format_model_error, missing_api_key_message
 from gcode.history import DEFAULT_SESSION, clear, load, save
 from gcode.models import (
@@ -250,8 +257,13 @@ def main() -> None:
     # Load ~/.gcode/.env first (setup module's config location)
     load_env()
 
+    # Load optional .gcoderc configuration (CLI/env still win over it)
+    config = load_config(project_root=os.getcwd())
+    tool_module.set_bash_timeout(resolve_bash_timeout(config, tool_module.BASH_TIMEOUT))
+    system_prompt = resolve_system_prompt(config, SYSTEM_PROMPT)
+
     # Determine the model id early — Ollama models don't need an API key
-    model_id = args.model or os.environ.get("GCODE_MODEL") or DEFAULT_MODEL
+    model_id = resolve_model(config, args.model, os.environ.get("GCODE_MODEL")) or DEFAULT_MODEL
     using_ollama = model_id.startswith("ollama/")
 
     api_key = get_api_key()
@@ -273,7 +285,7 @@ def main() -> None:
         # Running an Ollama model without any key — that's fine
         api_key = "ollama"
 
-    tool_module.set_auto_approve(args.yes)
+    tool_module.set_auto_approve(resolve_auto_approve(config, args.yes))
 
     try:
         model = build_model(model_id, api_key)
@@ -285,7 +297,7 @@ def main() -> None:
     session = args.session
     messages = load(session)
     if messages is None:
-        messages = [SystemMessage(content=SYSTEM_PROMPT)]
+        messages = [SystemMessage(content=system_prompt)]
     else:
         ui.info(f"Resumed session '{session}' — {len(messages)} messages.")
 
@@ -355,7 +367,7 @@ def main() -> None:
                         ui.info("Setup cancelled.")
                 elif cmd == "clear":
                     clear(session)
-                    messages[:] = [SystemMessage(content=SYSTEM_PROMPT)]
+                    messages[:] = [SystemMessage(content=system_prompt)]
                     ui.info("Started a fresh session.")
                 else:
                     ui.info(f"Unknown command: /{cmd} (try /help)")

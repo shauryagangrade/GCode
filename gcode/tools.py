@@ -34,6 +34,12 @@ def is_auto_approve() -> bool:
     return AUTO_APPROVE
 
 
+def set_bash_timeout(value: int) -> None:
+    """Set the bash tool timeout in seconds (configurable via .gcoderc)."""
+    global BASH_TIMEOUT
+    BASH_TIMEOUT = value
+
+
 @tool
 def execute_bash(command: str) -> str:
     """Execute a bash command on the local machine and return its output.
