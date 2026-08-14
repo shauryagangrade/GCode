@@ -1,7 +1,7 @@
 """Optional persistent configuration for GCode.
 
-Reads ``.gcoderc`` (project root) then ``~/.gcode/config`` (user home) using a
-simple ``key = value`` format with ``#`` comments. Settings are optional and
+Reads ``.gcoderc`` (project root) then ``~/.gcode/.gcoderc`` (user home) using
+a simple ``key = value`` format with ``#`` comments. Settings are optional and
 override built-in defaults, but command-line flags and environment variables
 still take precedence:
 
