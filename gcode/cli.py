@@ -252,7 +252,21 @@ def main() -> None:
     parser.add_argument("--session", default=DEFAULT_SESSION, help="Named session for history.")
     parser.add_argument("--yes", action="store_true", help="Auto-approve bash commands (unsafe).")
     parser.add_argument("--version", action="version", version=f"gcode {__version__}")
+    parser.add_argument(
+        "--cwd",
+        metavar="DIR",
+        help="Run as if started in DIR (like git -C), instead of the current directory.",
+    )
     args = parser.parse_args()
+
+    # Before anything reads the working directory. .gcoderc discovery, the
+    # banner and every tool resolve paths against it, so changing it later
+    # would leave them disagreeing about which project this session is for.
+    if args.cwd is not None:
+        try:
+            os.chdir(args.cwd)
+        except OSError as exc:
+            parser.error(f"--cwd {args.cwd!r} is not usable: {exc.strerror}")
 
     # Load ~/.gcode/.env first (setup module's config location)
     load_env()
