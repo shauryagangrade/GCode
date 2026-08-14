@@ -219,7 +219,13 @@ def grep(
         flags = ["-rnI"]
         if ignore_case:
             flags.append("-i")
-        cmd = [grep_bin, *flags, "--include", glob, "-e", pattern, path]
+        # --include=<glob>, not --include <glob>: on Windows the grep on PATH
+        # is usually Git for Windows' MSYS build, whose runtime glob-expands a
+        # bare "*" argument against the *current* directory before grep sees
+        # it. The filter then names whatever file happened to sort first here,
+        # so a search of some other directory quietly matches nothing. Keeping
+        # the glob attached to the flag hides it from that expansion.
+        cmd = [grep_bin, *flags, f"--include={glob}", "-e", pattern, path]
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=60, check=False)
         except subprocess.TimeoutExpired:
