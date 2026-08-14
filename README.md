@@ -30,7 +30,15 @@ pip install -e .
 
 ## Setup
 
-Copy `.env.example` to `.env` and add your OpenRouter API key:
+GCode reads your API key from `~/.gcode/.env` (not a project-root `.env`).
+Create it from the template and add your OpenRouter API key:
+
+```bash
+mkdir -p ~/.gcode
+cp .env.example ~/.gcode/.env
+```
+
+Then edit `~/.gcode/.env`:
 
 ```
 OPENROUTER_API_KEY=sk-or-...
