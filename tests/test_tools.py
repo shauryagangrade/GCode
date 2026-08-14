@@ -118,12 +118,14 @@ def test_grep_python_fallback_skips_binary_files(tmp_path):
     assert "bin.dat" not in out
 
 
-def test_execute_bash_cancels_on_eof():
+def test_execute_bash_rejects_non_interactive_eof():
     from gcode.tools import execute_bash
 
     with patch("builtins.input", side_effect=EOFError):
         out = execute_bash.invoke({"command": "echo hi"})
-    assert out == "Command execution cancelled by user."
+    assert out == (
+        "Command rejected: no terminal available (non-interactive). Run with --yes to auto-approve."
+    )
 
 
 def test_execute_bash_cancels_on_keyboard_interrupt():

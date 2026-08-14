@@ -38,7 +38,12 @@ def execute_bash(command: str) -> str:
     if not AUTO_APPROVE:
         try:
             confirm = input(f"GCode wants to run: {command}\nApprove? (y/n): ")
-        except (EOFError, KeyboardInterrupt):
+        except EOFError:
+            return (
+                "Command rejected: no terminal available (non-interactive). "
+                "Run with --yes to auto-approve."
+            )
+        except KeyboardInterrupt:
             return "Command execution cancelled by user."
         if confirm.strip().lower() != "y":
             return "Command execution cancelled by user."

@@ -15,8 +15,10 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `/version` slash command to show the installed GCode version from inside a session
 
 ### Changed
+- `/help` command listing grouped by category (General, Model, Session, Git) so the growing command set stays scannable
 
 ### Fixed
+- `execute_bash` no longer hangs or crashes when its approval prompt runs in a non-interactive environment (CI, Docker, pipes); it now rejects the command, and `--yes` can be used to auto-approve
 
 ### Removed
 
