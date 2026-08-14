@@ -168,9 +168,10 @@ def test_grep_passes_include_as_one_argument():
     this asserts the command shape rather than the result: on a Linux runner a
     revert would otherwise stay green.
     """
-    with patch("gcode.tools.shutil.which", return_value="/usr/bin/grep"), patch(
-        "gcode.tools.subprocess.run"
-    ) as run:
+    with (
+        patch("gcode.tools.shutil.which", return_value="/usr/bin/grep"),
+        patch("gcode.tools.subprocess.run") as run,
+    ):
         run.return_value.returncode = 0
         run.return_value.stdout = ""
         run.return_value.stderr = ""
@@ -184,9 +185,10 @@ def test_grep_passes_include_as_one_argument():
 
 def test_grep_include_defaults_to_everything():
     """The default glob is still passed, so behaviour is unchanged."""
-    with patch("gcode.tools.shutil.which", return_value="/usr/bin/grep"), patch(
-        "gcode.tools.subprocess.run"
-    ) as run:
+    with (
+        patch("gcode.tools.shutil.which", return_value="/usr/bin/grep"),
+        patch("gcode.tools.subprocess.run") as run,
+    ):
         run.return_value.returncode = 1
         run.return_value.stdout = ""
         run.return_value.stderr = ""
