@@ -123,3 +123,13 @@ wait a moment and retry, or use your own OpenRouter key for higher limits.
 
 Bash commands require a `y/n` confirmation by default. Only use `--yes` if you
 trust the agent and your prompts — it will run whatever the model requests.
+
+Contributors
+
+Thanks to everyone who has contributed to GCode, whether through code, documentation, bug reports, testing, or other contributions. ❤️
+
+Your contributions help make GCode better for everyone.
+
+<a href="https://github.com/shauryagangrade/GCode/graphs/contributors"> <img src="https://contrib.rocks/image?repo=shauryagangrade/GCode" /> </a>
+
+Contributions are always welcome! See CONTRIBUTING.md to get started.
