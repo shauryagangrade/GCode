@@ -96,7 +96,10 @@ class RichUI:
     def _show_slash_menu(self) -> str:
         """Show an interactive slash command menu with arrow key navigation.
 
-        Returns the selected command string (e.g. '/help').
+        Typing filters the list as you type (case-insensitive substring match,
+        e.g. "oll" narrows to /ollama); Backspace edits the filter, Enter runs
+        the highlighted command, and Esc cancels. Returns the selected command
+        string (e.g. '/help'), or "" when the user cancels or nothing matches.
         """
         choices = [f"{cmd}  — {desc}" for cmd, desc in _SLASH_COMMANDS]
 
@@ -105,7 +108,9 @@ class RichUI:
                 "Select a command:",
                 choices=choices,
                 use_shortcuts=False,
-                instruction="(↑↓ navigate, Enter select, Esc cancel)",
+                use_search_filter=True,
+                use_jk_keys=False,  # j/k are consumed by the search filter
+                instruction="(↑↓ navigate, type to filter, Enter select, Esc cancel)",
             ).ask()
         except KeyboardInterrupt:
             return ""
