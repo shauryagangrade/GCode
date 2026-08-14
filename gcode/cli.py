@@ -30,19 +30,23 @@ SYSTEM_PROMPT = (
 
 def _print_help(ui: RichUI) -> None:
     ui.info(
-        "GCode slash commands:\n"
+        "[bold]GCode slash commands:[/bold]\n\n"
+        "[bold cyan]General[/bold cyan]\n"
         "  /help            Show this help\n"
         "  /version         Show the installed GCode version\n"
+        "  /quit, /exit     Leave GCode\n\n"
+        "[bold cyan]Model[/bold cyan]\n"
         "  /models          List available models (OpenRouter + Ollama)\n"
         "  /model <id|#n>   Switch to a model (id, or #n index from /models)\n"
         "  /ollama          List/select local Ollama models\n"
-        "  /pull <model>    Pull a model from Ollama registry\n"
-        "  /setup           Reconfigure API key\n"
+        "  /pull <model>    Pull a model from Ollama registry\n\n"
+        "[bold cyan]Session[/bold cyan]\n"
         "  /history         Show recent conversation turns\n"
-        "  /status          Show quick git status\n"
-        "  /diff            Show staged and unstaged git changes\n"
         "  /clear           Start a fresh session (discard history)\n"
-        "  /quit, /exit     Leave GCode\n"
+        "  /setup           Reconfigure API key\n\n"
+        "[bold cyan]Git[/bold cyan]\n"
+        "  /status          Show quick git status\n"
+        "  /diff            Show staged and unstaged git changes\n\n"
         "Any other input is sent to the agent."
     )
 

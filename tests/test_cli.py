@@ -57,3 +57,18 @@ def test_help_lists_version_command():
     help_text = ui.info.call_args.args[0]
     assert "/version" in help_text
     assert "installed GCode version" in help_text
+
+
+def test_help_has_categorized_groups():
+    ui = Mock()
+    _print_help(ui)
+
+    help_text = ui.info.call_args.args[0]
+    assert "General" in help_text
+    assert "Model" in help_text
+    assert "Session" in help_text
+    assert "Git" in help_text
+    assert "/help" in help_text
+    assert "/models" in help_text
+    assert "/history" in help_text
+    assert "/diff" in help_text
