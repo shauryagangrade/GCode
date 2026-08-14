@@ -58,22 +58,33 @@ def trim_history(messages: list) -> None:
 
 def _stream(messages: list, model, ui) -> AIMessage:
     """Stream one model response, forwarding text to the UI, and return the
-    accumulated message (with ``tool_calls`` populated)."""
+    accumulated message (with ``tool_calls`` populated).
+
+    A Ctrl+C during streaming stops the stream but keeps the session alive:
+    whatever was accumulated so far is returned as the turn's assistant
+    message so it gets persisted with the rest of the history.
+    """
     ui.assistant_start()
     accumulated = None
-    for chunk in model.stream(messages):
-        if not isinstance(chunk, AIMessageChunk):
-            continue
-        if chunk.content:
-            ui.token(chunk.content)
-        accumulated = chunk if accumulated is None else accumulated + chunk
+    interrupted = False
+    try:
+        for chunk in model.stream(messages):
+            if not isinstance(chunk, AIMessageChunk):
+                continue
+            if chunk.content:
+                ui.token(chunk.content)
+            accumulated = chunk if accumulated is None else accumulated + chunk
+    except KeyboardInterrupt:
+        interrupted = True
     if accumulated is None:
         accumulated = AIMessageChunk(content="")
     ui.assistant_end()
+    if interrupted:
+        ui.info("(streaming stopped by user)")
     # Store the canonical AIMessage (not the chunk) for clean history + reloads.
     return AIMessage(
         content=accumulated.content,
-        tool_calls=accumulated.tool_calls,
+        tool_calls=[] if interrupted else accumulated.tool_calls,
         additional_kwargs=accumulated.additional_kwargs,
         id=accumulated.id,
     )
@@ -92,6 +103,11 @@ def _run_tool(tool_name: str, tool_args: dict, ui) -> str:
     else:
         try:
             result = fn.invoke(tool_args)
+        except KeyboardInterrupt:
+            # Ctrl+C during a tool call cancels that call and keeps the
+            # session alive; the model sees a cancelled result instead of the
+            # whole REPL dying.
+            result = "Command execution cancelled by user."
         except Exception as exc:
             result = f"Tool {tool_name} raised: {exc}"
     ui.tool_result(tool_name, result)
