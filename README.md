@@ -9,6 +9,8 @@ A local, interactive AI coding CLI. Chat with a free LLM (via OpenRouter) that c
 read/write/edit files, run shell commands (with your approval), search your
 codebase, and work with git.
 
+![GCode demo](docs/demo.gif)
+
 ## Install
 
 ```bash
@@ -47,6 +49,27 @@ Commands (start a line with `/`):
 - `/quit` — exit
 
 Chat history persists across runs in `~/.gcode/`.
+
+## Demo GIF
+
+`docs/demo.gif` is recorded from a real session with [vhs](https://github.com/charmbracelet/vhs):
+
+```bash
+brew install vhs          # or: go install github.com/charmbracelet/vhs@latest
+vhs demo/demo.tape        # writes docs/demo.gif
+```
+
+Notes for editing `demo/demo.tape`:
+
+- `Set TypingSpeed` needs explicit units — `155ms`, not `155` (vhs parses a bare
+  number as `155s` = 155 seconds per keystroke).
+- Typed `/commands` can't be scripted: GCode opens an interactive slash menu on
+  `/`, which swallows the rest of the line. Launch with `--model <id>` instead
+  of `/model` to switch models in the recording.
+- Use `--yes` so `execute_bash` runs without the `y/n` gate (no keystroke
+  timing to sync), and pick a tool-capable free model that responds reliably.
+- The recording runs in real time, so give each turn generous `Sleep` windows —
+  free models are slow and rate-limited.
 
 GCode streams the assistant's replies token-by-token, renders Markdown, and shows
 each tool call as `⏺ Tool(args)` with a `y/n` gate before bash runs (skip the gate
