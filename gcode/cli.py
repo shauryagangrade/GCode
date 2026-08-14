@@ -10,10 +10,12 @@ from langchain_core.messages import SystemMessage
 from gcode import __version__
 from gcode import tools as tool_module
 from gcode.agent import build_model, run_turn, trim_history
+from gcode.errors import format_model_error, missing_api_key_message
 from gcode.history import DEFAULT_SESSION, clear, load, save
 from gcode.models import (
     DEFAULT_MODEL,
     list_all_models,
+    list_free_models,
     resolve_model_id,
 )
 from gcode.ollama import is_ollama_running, list_local_models, pull_model
@@ -68,6 +70,29 @@ def _model_label(m: dict) -> str:
     return f"{m['id']}  {source_tag}{ctx_tag}{tools_tag}"
 
 
+def _report_no_models(ui: RichUI) -> None:
+    """Explain an empty model list with the most likely cause and next steps."""
+    _, catalog_err = list_free_models()
+    if catalog_err:
+        ui.error(catalog_err)
+        ui.info(
+            "If you meant to use a local model, make sure Ollama is running "
+            "(https://ollama.ai) and has models pulled with /pull."
+        )
+        return
+    if is_ollama_running():
+        ui.error("No models found locally or on OpenRouter.")
+        ui.info("Pull a local model with /pull <model>, or check your network connection.")
+    else:
+        ui.error(
+            "No model source is reachable: OpenRouter has no free models and Ollama is not running."
+        )
+        ui.info(
+            "Start Ollama (https://ollama.ai) for local models, or check your "
+            "internet connection for OpenRouter."
+        )
+
+
 def _cmd_models(ui: RichUI) -> str:
     """Show available models (OpenRouter + Ollama) as an interactive menu.
 
@@ -75,7 +100,7 @@ def _cmd_models(ui: RichUI) -> str:
     """
     all_models = list_all_models()
     if not all_models:
-        ui.info("No models found. Check your network or Ollama server.")
+        _report_no_models(ui)
         return ""
 
     # Build choice labels and maintain a mapping from label to model id
@@ -113,7 +138,7 @@ def _cmd_model(arg: str, api_key: str, state: dict, ui: RichUI) -> None:
         state["model_id"] = model_id
         ui.info(f"Switched to model: {model_id}")
     except Exception as exc:
-        ui.error(f"could not build model: {exc}")
+        ui.error("could not build model: " + format_model_error(exc))
 
 
 def _cmd_history(messages, ui: RichUI) -> None:
@@ -238,7 +263,7 @@ def main() -> None:
             else:
                 sys.exit("No model selected. Exiting.")
         elif not api_key:
-            sys.exit("No API key provided. Exiting.")
+            sys.exit(missing_api_key_message())
     elif not api_key:
         # Running an Ollama model without any key — that's fine
         api_key = "ollama"
@@ -248,7 +273,7 @@ def main() -> None:
     try:
         model = build_model(model_id, api_key)
     except Exception as exc:
-        sys.exit(f"Failed to initialize model: {exc}")
+        sys.exit("Failed to initialize model: " + format_model_error(exc))
 
     ui = RichUI()
 

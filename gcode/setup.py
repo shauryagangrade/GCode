@@ -14,6 +14,8 @@ import questionary
 import requests
 from dotenv import load_dotenv
 
+from gcode.errors import network_error_message
+
 # Where we store the user's API key
 _ENV_DIR = Path.home() / ".gcode"
 _ENV_FILE = _ENV_DIR / ".env"
@@ -54,7 +56,7 @@ def validate_api_key(key: str):
         resp.raise_for_status()
         return True, ""
     except requests.exceptions.RequestException as exc:
-        return False, f"Network error while validating key: {exc}"
+        return False, network_error_message("validate your API key", exc)
 
 
 def prompt_for_api_key() -> str:

@@ -113,3 +113,24 @@ def test_list_all_models_passes_through_enrichment(mock_free, _ollama):
             "supports_tools": True,
         }
     ]
+
+
+@patch("gcode.models.requests.get")
+def test_list_free_models_network_error_is_actionable(mock_get):
+    import requests
+    from gcode.models import list_free_models
+
+    mock_get.side_effect = requests.exceptions.ConnectionError("boom")
+    entries, err = list_free_models()
+    assert entries == []
+    assert "Could not fetch the OpenRouter model list" in err
+    assert "internet connection" in err
+    assert "boom" in err
+
+
+def test_resolve_model_id_unknown_suggests_models():
+    from gcode.models import resolve_model_id
+
+    _, err = resolve_model_id("gpt-4", [{"id": "qwen/qwen3-coder:free"}])
+    assert "Unknown model" in err
+    assert "/models" in err
