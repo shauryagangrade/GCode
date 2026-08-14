@@ -15,10 +15,14 @@ DEFAULT_MODEL = "qwen/qwen3-coder:free"
 
 
 def list_free_models():
-    """Return (sorted_list_of_free_model_ids, error_or_None).
+    """Return (list_of_free_model_entries, error_or_None).
 
     Best-effort: on a network failure the list is empty and ``error`` explains
     why, so callers can degrade gracefully.
+
+    Each entry is a dict with ``id``, the OpenRouter ``context_length`` (token
+    window) when known, and ``supports_tools`` derived from the catalog's
+    ``supported_parameters`` (True when the model advertises ``tools``).
     """
     try:
         resp = requests.get(
@@ -31,22 +35,43 @@ def list_free_models():
     except requests.exceptions.RequestException as exc:  # network / TLS / timeout
         return [], f"Could not fetch model list: {exc}"
 
-    ids = sorted(m["id"] for m in data.get("data", []) if m.get("id", "").endswith(":free"))
-    return ids, None
+    entries = []
+    for m in data.get("data", []):
+        if not m.get("id", "").endswith(":free"):
+            continue
+        supported = m.get("supported_parameters") or []
+        entries.append(
+            {
+                "id": m["id"],
+                "context_length": m.get("context_length") or 0,
+                "supports_tools": "tools" in supported,
+            }
+        )
+    entries.sort(key=lambda entry: entry["id"])
+    return entries, None
 
 
 def list_all_models():
     """Return a combined list of OpenRouter free models + local Ollama models.
 
     Each entry is a dict with keys ``id`` and ``source`` ("openrouter" or "ollama").
-    Ollama models are prefixed with ``ollama/`` in the id.
+    Ollama models are prefixed with ``ollama/`` in the id. OpenRouter entries
+    also carry ``context_length`` (token window) and ``supports_tools``; Ollama
+    entries carry ``size`` where the local registry reports it.
     """
     all_models = []
 
     # OpenRouter free models
-    free_ids, _err = list_free_models()
-    for mid in free_ids:
-        all_models.append({"id": mid, "source": "openrouter"})
+    free_entries, _err = list_free_models()
+    for m in free_entries:
+        all_models.append(
+            {
+                "id": m["id"],
+                "source": "openrouter",
+                "context_length": m.get("context_length") or 0,
+                "supports_tools": m.get("supports_tools", False),
+            }
+        )
 
     # Ollama local models
     if is_ollama_running():

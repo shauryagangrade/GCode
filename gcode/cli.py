@@ -51,6 +51,23 @@ def _print_help(ui: RichUI) -> None:
     )
 
 
+def _model_label(m: dict) -> str:
+    """Build a one-line menu label for a model entry from ``list_all_models()``.
+
+    OpenRouter entries show the context window and tool support from the live
+    catalog; Ollama entries show the local model size where reported.
+    """
+    source_tag = "[ollama]" if m["source"] == "ollama" else "[openrouter]"
+    if m["source"] == "ollama":
+        size_tag = f" ({m['size']})" if m.get("size") else ""
+        return f"{m['id']}  {source_tag}{size_tag}"
+
+    ctx = m.get("context_length") or 0
+    ctx_tag = f" ({ctx // 1000}k ctx)" if ctx >= 1000 else ""
+    tools_tag = " [tools]" if m.get("supports_tools") else ""
+    return f"{m['id']}  {source_tag}{ctx_tag}{tools_tag}"
+
+
 def _cmd_models(ui: RichUI) -> str:
     """Show available models (OpenRouter + Ollama) as an interactive menu.
 
@@ -65,9 +82,7 @@ def _cmd_models(ui: RichUI) -> str:
     choices = []
     label_to_id = {}
     for m in all_models:
-        source_tag = "[ollama]" if m["source"] == "ollama" else "[openrouter]"
-        size_tag = f" ({m['size']})" if m.get("size") else ""
-        label = f"{m['id']}  {source_tag}{size_tag}"
+        label = _model_label(m)
         choices.append(label)
         label_to_id[label] = m["id"]
 
