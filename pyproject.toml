@@ -21,7 +21,7 @@ dev = [
     "mypy>=2.3.0",
     "pip-audit>=2.10.1",
     "pytest>=8",
-    "ruff>=0.9",
+    "ruff>=0.16.2",
 ]
 
 [project.scripts]
