@@ -19,7 +19,7 @@ dev = [
     "build>=1.2",
     "coverage>=7",
     "mypy>=2.3.0",
-    "pip-audit>=2.7",
+    "pip-audit>=2.10.1",
     "pytest>=8",
     "ruff>=0.9",
 ]
