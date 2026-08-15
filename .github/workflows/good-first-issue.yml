@@ -1,0 +1,210 @@
+name: Good First Issue Guard
+
+# Daemon-style enforcement: issues labeled `good first issue` are reserved
+# for contributors submitting their first PR to this repo. All three jobs run
+# automatically on their triggers with no manual approval.
+#
+# SECURITY NOTE for the pull_request_target trigger: it runs in the context
+# of the base branch and receives a write-scoped token even for fork PRs, so
+# it runs with no approval gate. That is only safe because this workflow
+# NEVER checks out or executes code from the PR — it only reads issue/PR
+# metadata and writes comments / unassigns / closes PRs. Keep it that way.
+#
+# A contributor is "first-time" here iff they have 0 merged PRs authored by
+# them in this repo (gh pr list --state merged --author). Owner/collaborators
+# are always exempt.
+
+on:
+  issues:
+    types: [assigned]
+  pull_request_target:
+    types: [opened, reopened]
+  schedule:
+    - cron: "0 */6 * * *"
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  # -- Job 1: enforce when someone (usually themselves) gets assigned ------
+  guard-assignment:
+    name: Guard good-first-issue assignment
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'issues' &&
+      contains(github.event.issue.labels.*.name, 'good first issue')
+    concurrency:
+      group: gfi-assigned-${{ github.event.issue.number }}
+    steps:
+      - name: Enforce good-first-issue policy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE: ${{ github.event.issue.number }}
+          LOGIN: ${{ github.event.assignee.login }}
+        run: |
+          set -euo pipefail
+
+          # Owner/collaborators are exempt (they can self-assign to triage).
+          if gh api "repos/$GH_REPO/collaborators/$LOGIN" >/dev/null 2>&1; then
+            echo "Assignee $LOGIN is a collaborator — skipping."
+            exit 0
+          fi
+
+          merged=$(gh pr list --state merged --author "$LOGIN" --limit 1 --json number --jq 'length')
+
+          if [ "$merged" = "0" ]; then
+            # First-time contributor — welcome them and keep the assignment.
+            if ! gh api "repos/$GH_REPO/issues/$ISSUE/comments" --jq '.[].body' \
+              | grep -q 'good-first-issue-welcome'; then
+              body="$(printf '%s\n' \
+                '<!-- good-first-issue-welcome -->' \
+                "Hi @$LOGIN — welcome, and thanks for picking up this good-first-issue! If you get stuck, check out CONTRIBUTING.md and don't hesitate to ask questions here or in Discussions. Happy hacking!")"
+              gh api -X POST "repos/$GH_REPO/issues/$ISSUE/comments" -f body="$body" >/dev/null
+            fi
+            exit 0
+          fi
+
+          # Experienced contributor claiming a good-first-issue: unassign,
+          # explain, and close any PRs by them that reference this issue.
+          gh api -X DELETE "repos/$GH_REPO/issues/$ISSUE/assignees" \
+            --input <(printf '{"assignees":["%s"]}\n' "$LOGIN") >/dev/null || true
+
+          if ! gh api "repos/$GH_REPO/issues/$ISSUE/comments" --jq '.[].body' \
+            | grep -q 'good-first-issue-policy'; then
+            body="$(printf '%s\n' \
+              '<!-- good-first-issue-policy -->' \
+              "Hi @$LOGIN — \"good first issue\" labels are reserved for contributors submitting their first PR to GCode. Since you've already had a PR merged, please pick a different issue (e.g. one labeled \"help wanted\") instead. I've unassigned you from this one. Thanks for contributing!")"
+            gh api -X POST "repos/$GH_REPO/issues/$ISSUE/comments" -f body="$body" >/dev/null
+          fi
+
+          gh api "repos/$GH_REPO/issues/$ISSUE/timeline" --paginate \
+            --jq '.[] | select(.event=="cross-referenced") | select(.source.issue.pull_request != null) | .source.issue.number' \
+            | sort -u \
+            | while read -r ref; do
+                author=$(gh api "repos/$GH_REPO/issues/$ref" --jq '.user.login')
+                if [ "$author" = "$LOGIN" ]; then
+                  cbody="$(printf '%s\n' \
+                    '<!-- good-first-issue-close -->' \
+                    "Hi @$LOGIN — this PR references #$ISSUE, which is a \"good first issue\" reserved for first-time contributors. Since you've already contributed here, please work on a \"help wanted\" or other unclaimed issue instead. Closing without merging. Thanks!")"
+                  gh pr close "$ref" --comment "$cbody" || true
+                fi
+              done
+
+  # -- Job 2: close PRs that claim a good-first-issue ---------------------
+  guard-linked-pr:
+    name: Guard PRs claiming good-first-issue
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request_target'
+    concurrency:
+      group: gfi-pr-${{ github.event.pull_request.number }}
+    steps:
+      - name: Close PRs that claim a good-first-issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          LOGIN: ${{ github.event.pull_request.user.login }}
+          ASSOC: ${{ github.event.pull_request.author_association }}
+        run: |
+          set -euo pipefail
+
+          # OWNER/MEMBER/COLLABORATOR are exempt.
+          case "$ASSOC" in
+            OWNER|MEMBER|COLLABORATOR) echo "Author is $ASSOC — skipping."; exit 0;;
+          esac
+
+          # Claim refs only ("closes #N", "fixes #N", ...), so a #N inside a
+          # code fence or a plain mention is not treated as a claim.
+          refs=$(gh api "repos/$GH_REPO/issues/$PR" --jq '.body // ""' \
+            | grep -Eio '(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)[[:space:]]+#[0-9]+' \
+            | grep -Eo '#[0-9]+' | tr -d '#' | sort -u) || true
+
+          if [ -z "$refs" ]; then
+            echo "No claim references found — nothing to do."
+            exit 0
+          fi
+
+          merged=$(gh pr list --state merged --author "$LOGIN" --limit 1 --json number --jq 'length')
+          if [ "$merged" = "0" ]; then
+            echo "$LOGIN is a first-time contributor — nothing to do."
+            exit 0
+          fi
+
+          for issue in $refs; do
+            labels=$(gh api "repos/$GH_REPO/issues/$issue" --jq '[.labels[].name] | join(",")')
+            case ",$labels," in
+              *",good first issue,"*)
+                body="$(printf '%s\n' \
+                  '<!-- good-first-issue-close -->' \
+                  "Hi @$LOGIN, thanks for the PR! It references #$issue, which is a \"good first issue\" reserved for first-time contributors. Since you've already contributed here, please work on a \"help wanted\" or other unclaimed issue instead. Closing without merging. Thanks!")"
+                gh pr close "$PR" --comment "$body" || true
+                exit 0
+                ;;
+              *)
+                echo "Issue #$issue is not a good-first-issue — leaving PR open."
+                ;;
+            esac
+          done
+
+  # -- Job 3: periodic sweep for edge cases --------------------------------
+  # Catches things the event triggers miss: an issue labeled AFTER it was
+  # assigned, or someone unassigning and re-assigning to dodge the guard.
+  sweep:
+    name: Sweep good-first-issue assignments
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    concurrency:
+      group: gfi-sweep
+    steps:
+      - name: Enforce on all open good-first-issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          issues=$(gh search issues --repo "$GH_REPO" --label "good first issue" \
+            --state open --json number --jq '.[].number')
+
+          for issue in $issues; do
+            gh api "repos/$GH_REPO/issues/$issue" --jq '.assignees[].login' \
+              | while read -r login; do
+                  if gh api "repos/$GH_REPO/collaborators/$login" >/dev/null 2>&1; then
+                    continue
+                  fi
+                  merged=$(gh pr list --state merged --author "$login" --limit 1 --json number --jq 'length')
+                  if [ "$merged" = "0" ]; then
+                    continue
+                  fi
+
+                  LOGIN="$login"
+                  ISSUE="$issue"
+
+                  # Same enforcement as Job 1.
+                  gh api -X DELETE "repos/$GH_REPO/issues/$ISSUE/assignees" \
+                    --input <(printf '{"assignees":["%s"]}\n' "$LOGIN") >/dev/null || true
+
+                  if ! gh api "repos/$GH_REPO/issues/$ISSUE/comments" --jq '.[].body' \
+                    | grep -q 'good-first-issue-policy'; then
+                    body="$(printf '%s\n' \
+                      '<!-- good-first-issue-policy -->' \
+                      "Hi @$LOGIN — \"good first issue\" labels are reserved for contributors submitting their first PR to GCode. Since you've already had a PR merged, please pick a different issue (e.g. one labeled \"help wanted\") instead. I've unassigned you from this one. Thanks for contributing!")"
+                    gh api -X POST "repos/$GH_REPO/issues/$ISSUE/comments" -f body="$body" >/dev/null
+                  fi
+
+                  gh api "repos/$GH_REPO/issues/$ISSUE/timeline" --paginate \
+                    --jq '.[] | select(.event=="cross-referenced") | select(.source.issue.pull_request != null) | .source.issue.number' \
+                    | sort -u \
+                    | while read -r ref; do
+                        author=$(gh api "repos/$GH_REPO/issues/$ref" --jq '.user.login')
+                        if [ "$author" = "$LOGIN" ]; then
+                          cbody="$(printf '%s\n' \
+                            '<!-- good-first-issue-close -->' \
+                            "Hi @$LOGIN — this PR references #$ISSUE, which is a \"good first issue\" reserved for first-time contributors. Since you've already contributed here, please work on a \"help wanted\" or other unclaimed issue instead. Closing without merging. Thanks!")"
+                          gh pr close "$ref" --comment "$cbody" || true
+                        fi
+                      done
+                done
+          done
