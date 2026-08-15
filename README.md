@@ -17,9 +17,9 @@ GCode is community-built, and contributions of every kind are welcome — bug
 reports, docs, tests, and features.
 
 - **First-time contributor?** Start with a
-  [good first issue](https://github.com/shauryagangrade/GCode/labels/good%20first%20issue).
-- Need more context? Browse the
-  [help wanted](https://github.com/shauryagangrade/GCode/labels/help%20wanted) issues.
+  [good first issue](https://github.com/shauryagangrade/GCode/labels/good%20first%20issue)
+  or a [help wanted](https://github.com/shauryagangrade/GCode/labels/help%20wanted) issue —
+  both are reserved for contributors submitting their first PR to GCode.
 - Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 
 ## Install

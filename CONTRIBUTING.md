@@ -36,7 +36,12 @@ Open an issue using the [feature request template](.github/ISSUE_TEMPLATE/featur
 
 ## Good First Issues
 
-Look for issues labeled [`good first issue`](https://github.com/shauryagangrade/GCode/labels/good%20first%20issue).
+Look for issues labeled
+[`good first issue`](https://github.com/shauryagangrade/GCode/labels/good%20first%20issue)
+or [`help wanted`](https://github.com/shauryagangrade/GCode/labels/help%20wanted) —
+both are reserved for contributors submitting their first PR to GCode. If
+you've already had a PR merged, a bot will unassign you and close any PR that
+claims them, so pick an unreserved issue instead.
 
 ---
 
