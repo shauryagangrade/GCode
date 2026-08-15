@@ -155,7 +155,7 @@ jobs:
   sweep:
     name: Sweep good-first-issue assignments
     runs-on: ubuntu-latest
-    if: github.event_name == 'schedule'
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     concurrency:
       group: gfi-sweep
     steps:
