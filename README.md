@@ -56,7 +56,7 @@ take precedence over the file.
 
 ```
 # .gcoderc
-model = qwen/qwen3-coder:free
+model = nvidia/nemotron-3-super-120b-a12b:free
 auto_approve = false
 bash_timeout = 300
 system_prompt = You are GCode, a coding agent.
@@ -76,7 +76,7 @@ Supported keys:
 ```bash
 gcode                            # start a session in the current directory
 gcode --session work             # named, resumable session
-gcode --model qwen/qwen3-coder:free
+gcode --model nvidia/nemotron-3-super-120b-a12b:free
 gcode --yes                      # auto-approve bash (unsafe — know what you run)
 ```
 
@@ -121,7 +121,7 @@ with `--yes`).
 
 ## Models
 
-The default `qwen/qwen3-coder:free` supports tool use. Not every free model
+The default `nvidia/nemotron-3-super-120b-a12b:free` supports tool use. Not every free model
 does — some (e.g. `meta-llama/llama-3.2-3b-instruct:free`) return a 404
 "No endpoints found that support tool use". Stick to tool-capable models, or
 any model you pass via `/model` / `--model` / `GCODE_MODEL`. Free models are

@@ -12,7 +12,7 @@ from gcode.errors import network_error_message, unknown_model_message
 from gcode.ollama import is_ollama_running, list_local_models
 
 OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
-DEFAULT_MODEL = "qwen/qwen3-coder:free"
+DEFAULT_MODEL = "nvidia/nemotron-3-super-120b-a12b:free"
 
 
 def list_free_models():

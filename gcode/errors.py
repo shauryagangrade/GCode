@@ -31,7 +31,7 @@ def unknown_model_message(text: str) -> str:
     """Actionable message for an unrecognized model id."""
     return (
         f"Unknown model: {text!r}. Use /models to list available models, or "
-        "/model <full-id> (e.g. qwen/qwen3-coder:free)."
+        "/model <full-id> (e.g. nvidia/nemotron-3-super-120b-a12b:free)."
     )
 
 

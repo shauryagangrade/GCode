@@ -210,13 +210,13 @@ def build_scenario() -> None:
 
     # 1) Banner + intro
     render_to_screen(
-        "[cyan]── GCode v0.1.0   model: qwen/qwen3-coder:free   "
+        "[cyan]── GCode v0.1.0   model: nvidia/nemotron-3-super-120b-a12b:free   "
         "cwd: ~/Projects/GCode   session: demo ──[/]"
     )
     snap("banner")
     hold(IDLE_FRAMES)
     render_to_screen(
-        "[cyan]── GCode v0.1.0   model: qwen/qwen3-coder:free   "
+        "[cyan]── GCode v0.1.0   model: nvidia/nemotron-3-super-120b-a12b:free   "
         "cwd: ~/Projects/GCode   session: demo ──[/]\n"
         "[dim]Type /help for commands. Ctrl-D or /quit to exit.[/]"
     )
@@ -227,7 +227,7 @@ def build_scenario() -> None:
     type_line("[cyan bold]You:[/] ", "/help")
     hold(6)
     render_to_screen(
-        "[cyan]── GCode v0.1.0   model: qwen/qwen3-coder:free   "
+        "[cyan]── GCode v0.1.0   model: nvidia/nemotron-3-super-120b-a12b:free   "
         "cwd: ~/Projects/GCode   session: demo ──[/]\n"
         "[dim]Type /help for commands. Ctrl-D or /quit to exit.[/]\n"
         "[cyan bold]You:[/] [cyan]/help[/]\n"
@@ -257,12 +257,12 @@ def build_scenario() -> None:
     type_line("[cyan bold]You:[/] ", "/models")
     hold(6)
     render_to_screen(
-        "[cyan]── GCode v0.1.0   model: qwen/qwen3-coder:free   "
+        "[cyan]── GCode v0.1.0   model: nvidia/nemotron-3-super-120b-a12b:free   "
         "cwd: ~/Projects/GCode   session: demo ──[/]\n"
         "[dim]…(prior turns)…[/]\n"
         "[cyan bold]You:[/] [cyan]/models[/]\n"
         "[dim]Available free models (use '/model <id>' or '/model #n'):[/]\n"
-        "[dim]  1. qwen/qwen3-coder:free\n"
+        "[dim]  1. nvidia/nemotron-3-super-120b-a12b:free\n"
         "  2. deepseek/deepseek-chat-v3-0324:free\n"
         "  3. meta-llama/llama-3.3-70b-instruct:free\n"
         "  4. google/gemini-2.0-flash-exp:free[/]"
@@ -274,7 +274,7 @@ def build_scenario() -> None:
     type_line("[cyan bold]You:[/] ", "/model #2")
     hold(6)
     render_to_screen(
-        "[cyan]── GCode v0.1.0   model: qwen/qwen3-coder:free   "
+        "[cyan]── GCode v0.1.0   model: nvidia/nemotron-3-super-120b-a12b:free   "
         "cwd: ~/Projects/GCode   session: demo ──[/]\n"
         "[dim]…(prior turns)…[/]\n"
         "[cyan bold]You:[/] [cyan]/model #2[/]\n"

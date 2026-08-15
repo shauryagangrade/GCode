@@ -72,4 +72,4 @@ def test_unknown_model_message_suggests_models_command():
     assert "Unknown model: 'gpt-4'" in out
     assert "/models" in out
     assert "/model <full-id>" in out
-    assert "qwen/qwen3-coder:free" in out
+    assert "nvidia/nemotron-3-super-120b-a12b:free" in out
