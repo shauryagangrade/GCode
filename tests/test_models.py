@@ -150,3 +150,30 @@ def test_resolve_model_id_unknown_suggests_models():
     _, err = resolve_model_id("gpt-4", [{"id": "qwen/qwen3-coder:free"}])
     assert "Unknown model" in err
     assert "/models" in err
+
+
+def test_resolve_model_id_accepts_hash_index():
+    from gcode.models import resolve_model_id
+
+    models = [{"id": "a/x:free"}, {"id": "b/y:free"}, {"id": "c/z:free"}]
+    model_id, err = resolve_model_id("#2", models)
+    assert err is None
+    assert model_id == "b/y:free"
+
+
+def test_resolve_model_id_hash_index_out_of_range():
+    from gcode.models import resolve_model_id
+
+    models = [{"id": "a/x:free"}]
+    model_id, err = resolve_model_id("#9", models)
+    assert model_id is None
+    assert "Unknown model" in err
+
+
+def test_resolve_model_id_plain_index_still_works():
+    from gcode.models import resolve_model_id
+
+    models = [{"id": "a/x:free"}, {"id": "b/y:free"}]
+    model_id, err = resolve_model_id("1", models)
+    assert err is None
+    assert model_id == "a/x:free"

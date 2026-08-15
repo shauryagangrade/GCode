@@ -106,9 +106,10 @@ Notes for editing `demo/demo.tape`:
 
 - `Set TypingSpeed` needs explicit units — `155ms`, not `155` (vhs parses a bare
   number as `155s` = 155 seconds per keystroke).
-- Typed `/commands` can't be scripted: GCode opens an interactive slash menu on
-  `/`, which swallows the rest of the line. Launch with `--model <id>` instead
-  of `/model` to switch models in the recording.
+- Typed `/commands` work normally (the interactive slash menu only opens for a
+  bare `/`), but the recording still launches with `--model <id>` because
+  `/models`/`/model` hit the live OpenRouter catalog at runtime, which is slow
+  and nondeterministic to script.
 - Use `--yes` so `execute_bash` runs without the `y/n` gate (no keystroke
   timing to sync), and pick a tool-capable free model that responds reliably.
 - The recording runs in real time, so give each turn generous `Sleep` windows —

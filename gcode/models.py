@@ -118,9 +118,9 @@ def resolve_model_id(text, all_models=None):
         if ollama_prefixed in model_ids:
             return ollama_prefixed, None
 
-    # Index-based selection (1-based)
+    # Index-based selection (1-based), e.g. "2" or "#2" (as printed by /models).
     try:
-        idx = int(text)
+        idx = int(text.lstrip("#"))
         if 1 <= idx <= len(model_ids):
             return model_ids[idx - 1], None
     except ValueError:

@@ -8,7 +8,6 @@ display, a permission gate, and status/error output.
 import questionary
 from prompt_toolkit import PromptSession
 from prompt_toolkit.formatted_text import HTML
-from prompt_toolkit.key_binding import KeyBindings
 from rich.console import Console
 from rich.live import Live
 from rich.markdown import Markdown
@@ -119,26 +118,12 @@ class RichUI:
     def prompt(self) -> str:
         """Prompt the user for input.
 
-        If the user types ``/`` (without pressing Enter), an interactive command
-        menu opens immediately (arrow-key navigable).  All other input uses
-        prompt_toolkit with readline-style editing.
+        A bare ``/`` (on its own line) opens the interactive command menu.
+        Any other input — including typed slash commands such as
+        ``/model deepseek/deepseek-chat:free`` — is returned as-is for normal
+        handling, so slash commands never have their arguments swallowed.
         """
-        # Detect '/' key press using prompt_toolkit so the menu opens
-        # immediately — no Enter required.
-        bindings = KeyBindings()
-        menu_triggered = [False]
-
-        @bindings.add("/")
-        def _(event):
-            """Handle '/' key press — show menu immediately."""
-            if event.current_buffer.text == "":
-                event.app.exit(result="/")
-                menu_triggered[0] = True
-            else:
-                event.current_buffer.insert_text("/")
-
         session: PromptSession[str] = PromptSession(
-            key_bindings=bindings,
             enable_open_in_editor=False,
             enable_system_prompt=False,
             enable_history_search=False,
@@ -152,11 +137,8 @@ class RichUI:
             HTML("<ansibold><ansicyan>You:</ansicyan></ansibold> "),
             mouse_support=False,
         )
-        if menu_triggered[0]:
-            selected_cmd = self._show_slash_menu()
-            if selected_cmd:
-                return selected_cmd
-            return ""
+        if line.strip() == "/":
+            return self._show_slash_menu()
 
         return line
 
