@@ -136,6 +136,24 @@ def test_execute_bash_cancels_on_keyboard_interrupt():
     assert out == "Command execution cancelled by user."
 
 
+def test_execute_bash_cancels_when_subprocess_interrupted():
+    """Ctrl+C while the command is actually running cancels just that command.
+
+    The interrupt arrives from ``subprocess.run`` (the prompt was already
+    approved), and must return a cancelled result instead of killing the
+    whole session.
+    """
+    from gcode.tools import AUTO_APPROVE, execute_bash, set_auto_approve
+
+    set_auto_approve(True)
+    try:
+        with patch("gcode.tools.subprocess.run", side_effect=KeyboardInterrupt):
+            out = execute_bash.invoke({"command": "sleep 100"})
+        assert out == "Command execution cancelled by user."
+    finally:
+        set_auto_approve(AUTO_APPROVE)
+
+
 def test_execute_bash_rejects_non_yes_answer():
     from gcode.tools import execute_bash
 

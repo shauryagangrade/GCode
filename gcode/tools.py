@@ -68,6 +68,10 @@ def execute_bash(command: str) -> str:
         )
     except subprocess.TimeoutExpired:
         return f"Command timed out after {BASH_TIMEOUT}s: {command}"
+    except KeyboardInterrupt:
+        # Ctrl+C while the command is running cancels just this command and
+        # keeps the session alive, instead of killing the whole REPL.
+        return "Command execution cancelled by user."
 
     output = result.stdout.strip()
     if result.stderr.strip():
