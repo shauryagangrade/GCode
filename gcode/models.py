@@ -6,6 +6,8 @@ live catalog and let the user list/switch among every real `:free` model.
 Also supports Ollama local models — see gcode.ollama.
 """
 
+import time
+
 import requests
 
 from gcode.errors import network_error_message, unknown_model_message
@@ -14,8 +16,11 @@ from gcode.ollama import is_ollama_running, list_local_models
 OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
 DEFAULT_MODEL = "nvidia/nemotron-3-super-120b-a12b:free"
 
+_MODEL_CACHE_TTL_SECONDS = 30 * 60
+_model_catalog_cache: tuple[float, list] | None = None
 
-def list_free_models():
+
+def list_free_models(ttl_seconds: int = _MODEL_CACHE_TTL_SECONDS):
     """Return (list_of_free_model_entries, error_or_None).
 
     Best-effort: on a network failure the list is empty and ``error`` explains
@@ -26,7 +31,17 @@ def list_free_models():
     ``supported_parameters`` (True when the model advertises ``tools``). Note
     ``supports_tools`` reflects the advertised capability, not a guarantee that
     the model works with GCode's tool schema.
+
+    Successful responses are cached in-process for ``ttl_seconds`` (default 30
+    minutes). Pass ``ttl_seconds=0`` to force a fresh fetch. Failed fetches are
+    never cached.
     """
+    global _model_catalog_cache
+    if ttl_seconds > 0 and _model_catalog_cache is not None:
+        fetched_at, entries = _model_catalog_cache
+        if time.monotonic() - fetched_at < ttl_seconds:
+            return list(entries), None
+
     try:
         resp = requests.get(
             OPENROUTER_MODELS_URL,
@@ -51,6 +66,8 @@ def list_free_models():
             }
         )
     entries.sort(key=lambda entry: entry["id"])
+    if ttl_seconds > 0:
+        _model_catalog_cache = (time.monotonic(), list(entries))
     return entries, None
 
 
