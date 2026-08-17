@@ -28,6 +28,9 @@ reports, docs, tests, and features.
 pip install -e .
 ```
 
+**On Windows?** See the [Windows setup and troubleshooting guide](docs/windows.md)
+for native, WSL2, and Git Bash instructions and known limitations.
+
 ## Setup
 
 GCode reads your API key from `~/.gcode/.env` (not a project-root `.env`).
