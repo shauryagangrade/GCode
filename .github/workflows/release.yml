@@ -1,0 +1,88 @@
+name: Release
+
+# Tagging v0.3.0 (etc.) builds the package, runs the same audit/import
+# checks CI's build job runs on every push, and publishes a GitHub Release
+# with the matching CHANGELOG.md section as its notes plus the sdist+wheel
+# attached. Actual PyPI publishing is intentionally not wired up here: it
+# needs credentials that don't exist in CI, same reasoning as ci.yml's build
+# job never publishing anything itself.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+# Never cancel an in-flight release run, even if another tag lands mid-run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build, verify, and publish GitHub release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v9.0.0
+        with:
+          python-version: "3.13"
+          enable-cache: true
+
+      - name: Install dev dependencies
+        run: uv sync --extra dev
+
+      # Fail fast on a forgotten version bump before spending time on the
+      # build, audit, and publish steps below.
+      - name: Verify tag matches package version
+        run: |
+          set -euo pipefail
+          tag_version="${GITHUB_REF_NAME#v}"
+          pkg_version="$(uv run python -c 'from gcode import __version__; print(__version__)')"
+          if [ "$tag_version" != "$pkg_version" ]; then
+            echo "tag $GITHUB_REF_NAME does not match gcode.__version__ ($pkg_version)"
+            exit 1
+          fi
+          echo "tag matches package version: $pkg_version"
+
+      - name: Build sdist + wheel
+        run: uv run python -m build
+
+      - name: Verify package imports
+        run: |
+          uv run python -c "import gcode, gcode.cli, gcode.ui, gcode.tools; print('imports OK')"
+
+      - name: Verify CLI entry point
+        run: uv run gcode --version
+
+      - name: Verify version consistency
+        run: |
+          uv run python -c "
+          from importlib.metadata import version
+          from gcode import __version__
+          assert version('gcode') == __version__, f'{version(\"gcode\")} != {__version__}'
+          print('version OK:', __version__)
+          "
+
+      - name: Audit dependencies for known vulnerabilities
+        run: uv run pip-audit --progress-spinner off
+
+      - name: Extract release notes from CHANGELOG.md
+        run: |
+          set -euo pipefail
+          tag_version="${GITHUB_REF_NAME#v}"
+          uv run python scripts/extract_release_notes.py "$tag_version" > release-notes.md
+          cat release-notes.md
+
+      - name: Create GitHub Release
+        # Third-party action with contents: write, so pinned to the v2 commit
+        # SHA rather than a mutable tag.
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        with:
+          name: ${{ github.ref_name }}
+          body_path: release-notes.md
+          files: dist/*
+          fail_on_unmatched_files: true
