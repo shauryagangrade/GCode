@@ -6,6 +6,7 @@ import sys
 
 import questionary
 from langchain_core.messages import SystemMessage
+from rich.markup import escape
 
 from gcode import __version__
 from gcode import skills as skills_module
@@ -28,7 +29,7 @@ from gcode.models import (
 )
 from gcode.ollama import is_ollama_running, list_local_models, pull_model
 from gcode.setup import get_api_key, load_env, setup_flow
-from gcode.ui import RichUI
+from gcode.ui import RichUI, _truncate
 
 SYSTEM_PROMPT = (
     "You are GCode, a coding agent that helps the user write, edit, and inspect "
@@ -193,6 +194,10 @@ def _cmd_version(ui: RichUI) -> None:
     ui.info(f"GCode v{__version__}")
 
 
+_SOURCE_STYLES = {"project": "green", "user": "cyan", "claude": "magenta"}
+_SKILLS_DESC_LIMIT = 72
+
+
 def _cmd_skills(ui: RichUI) -> None:
     """List every skill visible from the current directory."""
     found = skills_module.discover_skills(os.getcwd())
@@ -203,8 +208,16 @@ def _cmd_skills(ui: RichUI) -> None:
             "~/.claude/skills/, or run /skill import <npm-package>."
         )
         return
-    lines = [f"  {name:<20} [{s.source}]  {s.description}" for name, s in sorted(found.items())]
-    ui.print("Available skills:\n" + "\n".join(lines), markup=False, highlight=False)
+    width = max(len(name) for name in found)
+    lines = ["[bold]Available skills:[/bold]", ""]
+    for name, skill in sorted(found.items()):
+        style = _SOURCE_STYLES.get(skill.source, "white")
+        description = escape(_truncate(skill.description, _SKILLS_DESC_LIMIT))
+        lines.append(
+            f"  [bold cyan]{escape(name):<{width}}[/bold cyan]  "
+            f"[{style}]\\[{skill.source}][/{style}]  {description}"
+        )
+    ui.print("\n".join(lines))
 
 
 def _cmd_skill_import(package: str, ui: RichUI) -> None:

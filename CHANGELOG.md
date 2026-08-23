@@ -24,6 +24,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Claude Code skills compatibility: `~/.claude/skills/` is scanned as a lowest-precedence skills source, accepting both `<name>/SKILL.md` folders and flat `<name>.md` files, with YAML frontmatter descriptions shown by `/skills` (precedence: project > user > claude)
 
 ### Changed
+- `/skills` output reformatted: one line per skill with a padded name column, color-coded source tag (project/user/claude), and descriptions truncated to ~72 chars for scannability
 - `/help` command listing grouped by category (General, Model, Session, Git) so the growing command set stays scannable
 - Setup docs (README, CONTRIBUTING) now point at `~/.gcode/.env` — the location the app actually reads — instead of a project-root `.env`
 

@@ -247,9 +247,31 @@ def test_cmd_skills_lists_discovered_skills(tmp_path, monkeypatch):
     _cmd_skills(ui)
 
     printed = ui.print.call_args.args[0]
+    assert "Available skills:" in printed
     assert "foo" in printed
     assert "[project]" in printed
     assert "Foo" in printed
+
+
+def test_cmd_skills_truncates_long_descriptions_to_one_line(tmp_path, monkeypatch):
+    from gcode import skills as skills_module
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(skills_module, "CLAUDE_SKILLS_DIR", tmp_path / "nonexistent-claude-dir")
+    skills_dir = tmp_path / ".gcode" / "skills"
+    skills_dir.mkdir(parents=True)
+    long_description = ("word " * 60).strip()
+    (skills_dir / "long.md").write_text(long_description, encoding="utf-8")
+
+    ui = Mock()
+    _cmd_skills(ui)
+
+    printed = ui.print.call_args.args[0]
+    line = next(line for line in printed.splitlines() if "long" in line)
+    # Markup tags inflate the raw string; untruncated it would be ~330 chars.
+    assert len(line) <= 160
+    assert line.rstrip().endswith("…")
+    assert long_description not in printed
 
 
 def test_cmd_skill_with_no_argument_shows_usage():
