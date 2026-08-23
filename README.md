@@ -75,6 +75,27 @@ Supported keys:
 | `bash_timeout` | int | `300` | Seconds before a bash command is killed |
 | `system_prompt` | string | built-in | Custom system prompt for new sessions |
 
+## Skills
+
+A skill is a Markdown file with extra instructions for GCode to follow — a
+house style, a domain checklist, project-specific conventions. Drop one into
+`.gcode/skills/<name>.md` (project-local) or `~/.gcode/skills/<name>.md`
+(user-wide, available in every project); a project skill overrides a user
+skill of the same name.
+
+```
+# .gcode/skills/commit-style.md
+# Commit style
+Write commit messages as a single imperative sentence, no period, under 72 chars.
+```
+
+- `/skills` — list every skill visible from the current directory
+- `/skill <name>` — activate one for the rest of the session (its content is
+  appended to the session's system prompt)
+- `/skill import <npm-package>` — run `npx <npm-package>` in a scratch
+  directory and copy any `.md` files it writes into the project's
+  `.gcode/skills/`, same `y/n` approval as bash commands (see Safety below)
+
 ## Use
 
 ```bash
@@ -92,6 +113,9 @@ Commands (start a line with `/`):
 - `/model <id|#n>` — switch models (use an id, or `#n` from `/models`)
 - `/history` — show recent turns
 - `/status` — quick git status
+- `/skills` — list skills from `.gcode/skills/` (project + user)
+- `/skill <name>` — activate a skill for this session
+- `/skill import <npm-package>` — import a skill via `npx` (asks for approval first)
 - `/clear` — start a fresh session
 - `/quit` — exit
 
@@ -136,6 +160,9 @@ wait a moment and retry, or use your own OpenRouter key for higher limits.
 
 Bash commands require a `y/n` confirmation by default. Only use `--yes` if you
 trust the agent and your prompts — it will run whatever the model requests.
+`/skill import <package>` runs an arbitrary npm package via `npx` and carries
+the same confirmation (and is skipped by the same `--yes`) — only import
+skills from packages you trust.
 
 ## Contributors
 
