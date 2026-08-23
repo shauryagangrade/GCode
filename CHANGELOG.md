@@ -19,6 +19,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Optional `.gcoderc` configuration file (`~/.gcode/.gcoderc` or project root) to set model, auto-approve, bash timeout, and system prompt
 - `--cwd DIR` flag to run GCode against another project (like `git -C`)
 - Unit tests for history persistence, API-key setup, and grep differential behavior against a real `grep`
+- Automated GitHub Release workflow: pushing a `v*` tag builds sdist+wheel, verifies imports/CLI/version consistency, checks the tag matches `gcode.__version__`, audits dependencies, and publishes a GitHub Release with notes pulled from `CHANGELOG.md` and the built artifacts attached (see `docs/RELEASING.md`)
 
 ### Changed
 - `/help` command listing grouped by category (General, Model, Session, Git) so the growing command set stays scannable
