@@ -2,7 +2,15 @@ from unittest.mock import Mock, patch
 
 import pytest
 from gcode import __version__
-from gcode.cli import _cmd_diff, _cmd_status, _cmd_version, _print_help
+from gcode.cli import (
+    _cmd_diff,
+    _cmd_skill,
+    _cmd_skill_import,
+    _cmd_skills,
+    _cmd_status,
+    _cmd_version,
+    _print_help,
+)
 
 
 def test_cmd_diff_prints_repository_changes():
@@ -202,6 +210,142 @@ def test_cwd_that_does_not_exist_exits_two(tmp_path, capsys, monkeypatch):
     stderr = capsys.readouterr().err
     assert "--cwd" in stderr
     assert "Traceback" not in stderr
+
+
+def test_help_lists_skills_commands():
+    ui = Mock()
+    _print_help(ui)
+
+    help_text = ui.info.call_args.args[0]
+    assert "Skills" in help_text
+    assert "/skills" in help_text
+    assert "/skill <name>" in help_text
+    assert "/skill import <package>" in help_text
+
+
+def test_cmd_skills_reports_when_none_found(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    ui = Mock()
+    _cmd_skills(ui)
+
+    assert "No skills found" in ui.info.call_args.args[0]
+
+
+def test_cmd_skills_lists_discovered_skills(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    skills_dir = tmp_path / ".gcode" / "skills"
+    skills_dir.mkdir(parents=True)
+    (skills_dir / "foo.md").write_text("# Foo\nDoes stuff.", encoding="utf-8")
+
+    ui = Mock()
+    _cmd_skills(ui)
+
+    printed = ui.print.call_args.args[0]
+    assert "foo" in printed
+    assert "[project]" in printed
+    assert "Foo" in printed
+
+
+def test_cmd_skill_with_no_argument_shows_usage():
+    ui = Mock()
+    _cmd_skill("", [], ui)
+
+    assert "Usage:" in ui.info.call_args.args[0]
+
+
+def test_cmd_skill_unknown_name_reports_error(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    ui = Mock()
+    _cmd_skill("nonexistent", [], ui)
+
+    assert "Unknown skill" in ui.info.call_args.args[0]
+
+
+def test_cmd_skill_activates_by_extending_system_message(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    skills_dir = tmp_path / ".gcode" / "skills"
+    skills_dir.mkdir(parents=True)
+    (skills_dir / "foo.md").write_text("# Foo\nExtra instructions.", encoding="utf-8")
+
+    system_message = Mock(content="base prompt")
+    messages = [system_message]
+    ui = Mock()
+    _cmd_skill("foo", messages, ui)
+
+    assert "base prompt" in system_message.content
+    assert "Extra instructions." in system_message.content
+    assert "Activated skill 'foo'" in ui.info.call_args.args[0]
+
+
+def test_cmd_skill_import_with_no_package_shows_usage():
+    ui = Mock()
+    _cmd_skill("import ", [], ui)
+
+    assert "Usage: /skill import" in ui.info.call_args.args[0]
+
+
+def test_cmd_skill_import_dispatches_after_approval():
+    ui = Mock()
+    with (
+        patch("gcode.cli.tool_module.is_auto_approve", return_value=False),
+        patch("builtins.input", return_value="y"),
+        patch("gcode.cli.skills_module.import_skill", return_value=["imported"]) as mock_import,
+    ):
+        _cmd_skill("import some-pkg", [], ui)
+
+    mock_import.assert_called_once()
+    assert mock_import.call_args.args[0] == "some-pkg"
+    assert "Imported skill(s)" in ui.info.call_args.args[0]
+
+
+def test_cmd_skill_import_cancelled_when_not_approved():
+    ui = Mock()
+    with (
+        patch("gcode.cli.tool_module.is_auto_approve", return_value=False),
+        patch("builtins.input", return_value="n"),
+        patch("gcode.cli.skills_module.import_skill") as mock_import,
+    ):
+        _cmd_skill("import some-pkg", [], ui)
+
+    mock_import.assert_not_called()
+    assert "cancelled" in ui.info.call_args.args[0]
+
+
+def test_cmd_skill_import_skips_prompt_when_auto_approved():
+    ui = Mock()
+    with (
+        patch("gcode.cli.tool_module.is_auto_approve", return_value=True),
+        patch("builtins.input", side_effect=AssertionError("should not prompt")),
+        patch("gcode.cli.skills_module.import_skill", return_value=["x"]) as mock_import,
+    ):
+        _cmd_skill("import some-pkg", [], ui)
+
+    mock_import.assert_called_once()
+
+
+def test_cmd_skill_import_reports_runtime_error():
+    ui = Mock()
+    with (
+        patch("gcode.cli.tool_module.is_auto_approve", return_value=True),
+        patch("gcode.cli.skills_module.import_skill", side_effect=RuntimeError("npx boom")),
+    ):
+        _cmd_skill_import("some-pkg", ui)
+
+    ui.error.assert_called_once_with("npx boom")
+
+
+def test_cmd_skill_import_reports_oserror_without_crashing():
+    ui = Mock()
+    with (
+        patch("gcode.cli.tool_module.is_auto_approve", return_value=True),
+        patch(
+            "gcode.cli.skills_module.import_skill",
+            side_effect=OSError(13, "Permission denied"),
+        ),
+    ):
+        _cmd_skill_import("some-pkg", ui)
+
+    assert "Permission denied" in ui.error.call_args.args[0]
 
 
 def test_cwd_pointing_at_a_file_exits_two(tmp_path, capsys, monkeypatch):

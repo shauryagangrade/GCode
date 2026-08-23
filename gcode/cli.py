@@ -8,6 +8,7 @@ import questionary
 from langchain_core.messages import SystemMessage
 
 from gcode import __version__
+from gcode import skills as skills_module
 from gcode import tools as tool_module
 from gcode.agent import build_model, run_turn, trim_history
 from gcode.config import (
@@ -56,6 +57,10 @@ def _print_help(ui: RichUI) -> None:
         "[bold cyan]Git[/bold cyan]\n"
         "  /status          Show quick git status\n"
         "  /diff            Show staged and unstaged git changes\n\n"
+        "[bold cyan]Skills[/bold cyan]\n"
+        "  /skills          List skills from .gcode/skills/ (project + user)\n"
+        "  /skill <name>    Activate a skill for this session\n"
+        "  /skill import <package>   Import a skill via npx\n\n"
         "Any other input is sent to the agent."
     )
 
@@ -186,6 +191,74 @@ def _cmd_diff(ui: RichUI) -> None:
 def _cmd_version(ui: RichUI) -> None:
     """Show the installed GCode version."""
     ui.info(f"GCode v{__version__}")
+
+
+def _cmd_skills(ui: RichUI) -> None:
+    """List every skill visible from the current directory."""
+    found = skills_module.discover_skills(os.getcwd())
+    if not found:
+        ui.info(
+            "No skills found. Add a .md file to .gcode/skills/ (project) or "
+            "~/.gcode/skills/ (user), or run /skill import <npm-package>."
+        )
+        return
+    lines = [f"  {name:<20} [{s.source}]  {s.description}" for name, s in sorted(found.items())]
+    ui.print("Available skills:\n" + "\n".join(lines), markup=False, highlight=False)
+
+
+def _cmd_skill_import(package: str, ui: RichUI) -> None:
+    """Run ``npx <package>`` (with approval) and copy any .md files it writes."""
+    if not tool_module.is_auto_approve():
+        try:
+            confirm = input(f"GCode wants to run: npx --yes {package}\nApprove? (y/n): ")
+        except EOFError:
+            ui.info("Import rejected: no terminal available. Run with --yes to auto-approve.")
+            return
+        except KeyboardInterrupt:
+            ui.info("Import cancelled.")
+            return
+        if confirm.strip().lower() != "y":
+            ui.info("Import cancelled.")
+            return
+
+    try:
+        imported = skills_module.import_skill(package, os.getcwd())
+    except (RuntimeError, OSError) as exc:
+        # OSError: e.g. unwritable skills dir / disk full while copying, so a
+        # filesystem failure degrades to an error message instead of crashing
+        # the session.
+        ui.error(str(exc))
+        return
+
+    ui.info(
+        f"Imported skill(s) from {package}: {', '.join(imported)}. Activate with /skill <name>."
+    )
+
+
+def _cmd_skill(arg: str, messages: list, ui: RichUI) -> None:
+    """Activate a skill by name, or import one via ``/skill import <package>``."""
+    arg = arg.strip()
+    if not arg:
+        ui.info("Usage: /skill <name>  or  /skill import <npm-package>")
+        return
+
+    parts = arg.split(None, 1)
+    if parts[0] == "import":
+        package = parts[1].strip() if len(parts) > 1 else ""
+        if not package:
+            ui.info("Usage: /skill import <npm-package>")
+            return
+        _cmd_skill_import(package, ui)
+        return
+
+    found = skills_module.discover_skills(os.getcwd())
+    skill = found.get(arg)
+    if skill is None:
+        ui.info(f"Unknown skill: {arg} (try /skills)")
+        return
+
+    messages[0].content = f"{messages[0].content}\n\n---\n{skill.read()}"
+    ui.info(f"Activated skill '{skill.name}' ({skill.source}) for this session.")
 
 
 def _cmd_ollama(ui: RichUI) -> str:
@@ -368,6 +441,10 @@ def main() -> None:
                     _cmd_status(ui)
                 elif cmd == "diff":
                     _cmd_diff(ui)
+                elif cmd == "skills":
+                    _cmd_skills(ui)
+                elif cmd == "skill":
+                    _cmd_skill(arg, messages, ui)
                 elif cmd == "setup":
                     new_key = setup_flow(force=True)
                     if new_key:
