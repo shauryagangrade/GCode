@@ -224,7 +224,10 @@ def test_help_lists_skills_commands():
 
 
 def test_cmd_skills_reports_when_none_found(tmp_path, monkeypatch):
+    from gcode import skills as skills_module
+
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(skills_module, "CLAUDE_SKILLS_DIR", tmp_path / "nonexistent-claude-dir")
     ui = Mock()
     _cmd_skills(ui)
 
@@ -232,7 +235,10 @@ def test_cmd_skills_reports_when_none_found(tmp_path, monkeypatch):
 
 
 def test_cmd_skills_lists_discovered_skills(tmp_path, monkeypatch):
+    from gcode import skills as skills_module
+
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(skills_module, "CLAUDE_SKILLS_DIR", tmp_path / "nonexistent-claude-dir")
     skills_dir = tmp_path / ".gcode" / "skills"
     skills_dir.mkdir(parents=True)
     (skills_dir / "foo.md").write_text("# Foo\nDoes stuff.", encoding="utf-8")

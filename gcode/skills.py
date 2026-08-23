@@ -7,6 +7,11 @@ project level (``<project_root>/.gcode/skills/``) or the user level
 (``~/.gcode/skills/``) - a project skill overrides a user skill of the same
 name, the same precedence ``.gcoderc`` config already uses.
 
+Claude Code-style skills are also discovered natively: ``~/.claude/skills``
+is scanned as an additional (lowest-precedence) source, and both layouts are
+accepted - a flat ``<name>.md`` file or a ``<name>/SKILL.md`` file inside a
+folder, with a YAML frontmatter ``description:`` preferred for listings.
+
 Skills can also be imported from an npm package via ``npx``: running
 ``npx <package>`` in a scratch directory and copying any Markdown files it
 writes there into the project's skills folder treats that package as the
@@ -21,6 +26,7 @@ from pathlib import Path
 
 SKILLS_DIRNAME = "skills"
 USER_SKILLS_DIR = Path.home() / ".gcode" / SKILLS_DIRNAME
+CLAUDE_SKILLS_DIR = Path.home() / ".claude" / SKILLS_DIRNAME
 NPX_TIMEOUT = 120
 
 
@@ -28,7 +34,7 @@ NPX_TIMEOUT = 120
 class Skill:
     name: str
     description: str
-    source: str  # "project" or "user"
+    source: str  # "project", "user", or "claude"
     path: Path
 
     def read(self) -> str:
@@ -41,31 +47,84 @@ def project_skills_dir(project_root: str) -> Path:
     return Path(project_root) / ".gcode" / SKILLS_DIRNAME
 
 
+def _frontmatter_field(lines: list[str], field: str) -> str | None:
+    """Return a top-level ``field:`` value from YAML frontmatter, if present.
+
+    ``lines[0]`` must be the opening ``---`` fence; the fence's closing line
+    ends the frontmatter block. Only single-line values are handled - good
+    enough for SKILL.md descriptions, and no PyYAML dependency needed.
+    """
+    if not lines or lines[0].strip() != "---":
+        return None
+    prefix = field.lower() + ":"
+    for line in lines[1:]:
+        stripped = line.strip()
+        if stripped == "---":
+            return None
+        if stripped.lower().startswith(prefix):
+            value = stripped[len(prefix) :].strip()
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in ('"', "'"):
+                value = value[1:-1]
+            return value or None
+    return None
+
+
 def _describe(path: Path) -> str:
-    """First non-blank line of ``path``, with any leading '#' stripped."""
+    """Describe ``path``: its frontmatter description, else first non-blank
+    line with any leading '#' stripped."""
     try:
-        for line in path.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if line:
-                return line.lstrip("#").strip() or "(no description)"
+        lines = path.read_text(encoding="utf-8").splitlines()
     except OSError:
-        pass
+        return "(no description)"
+    description = _frontmatter_field(lines, "description")
+    if description:
+        return description
+
+    body = lines
+    if lines and lines[0].strip() == "---":
+        closes = [i for i in range(1, len(lines)) if lines[i].strip() == "---"]
+        body = lines[closes[0] + 1 :] if closes else lines[1:]
+    for line in body:
+        line = line.strip()
+        if line:
+            return line.lstrip("#").strip() or "(no description)"
     return "(no description)"
+
+
+def _skill_entries(directory: Path) -> dict[str, Path]:
+    """Return every skill Markdown file in ``directory``, keyed by name.
+
+    Both layouts are accepted: a flat ``<name>.md`` file (GCode-native) and
+    a Claude Code-style ``<name>/SKILL.md`` folder. A flat file wins over a
+    same-named folder; folders without a ``SKILL.md`` are ignored.
+    """
+    entries: dict[str, Path] = {}
+    for path in sorted(directory.glob("*/SKILL.md")):
+        if path.is_file():
+            entries[path.parent.name] = path
+    for path in sorted(directory.glob("*.md")):
+        if path.is_file():
+            entries[path.stem] = path
+    return entries
 
 
 def discover_skills(project_root: str) -> dict[str, Skill]:
     """Return every skill visible from ``project_root``, keyed by name.
 
-    Scans the user-level folder, then the project-level folder; a project
-    skill with the same name replaces the user one.
+    Scans the Claude Code folder, then the user-level folder, then the
+    project-level folder; a skill with the same name replaces one from a
+    lower-precedence source (project beats user beats claude).
     """
     skills: dict[str, Skill] = {}
-    sources = (("user", USER_SKILLS_DIR), ("project", project_skills_dir(project_root)))
+    sources = (
+        ("claude", CLAUDE_SKILLS_DIR),
+        ("user", USER_SKILLS_DIR),
+        ("project", project_skills_dir(project_root)),
+    )
     for source, directory in sources:
         if not directory.is_dir():
             continue
-        for path in sorted(directory.glob("*.md")):
-            name = path.stem
+        for name, path in sorted(_skill_entries(directory).items()):
             skills[name] = Skill(name=name, description=_describe(path), source=source, path=path)
     return skills
 

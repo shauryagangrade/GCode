@@ -58,7 +58,7 @@ def _print_help(ui: RichUI) -> None:
         "  /status          Show quick git status\n"
         "  /diff            Show staged and unstaged git changes\n\n"
         "[bold cyan]Skills[/bold cyan]\n"
-        "  /skills          List skills from .gcode/skills/ (project + user)\n"
+        "  /skills          List skills (.gcode/skills, ~/.gcode/skills, ~/.claude/skills)\n"
         "  /skill <name>    Activate a skill for this session\n"
         "  /skill import <package>   Import a skill via npx\n\n"
         "Any other input is sent to the agent."
@@ -199,7 +199,8 @@ def _cmd_skills(ui: RichUI) -> None:
     if not found:
         ui.info(
             "No skills found. Add a .md file to .gcode/skills/ (project) or "
-            "~/.gcode/skills/ (user), or run /skill import <npm-package>."
+            "~/.gcode/skills/ (user), drop a Claude Code skill into "
+            "~/.claude/skills/, or run /skill import <npm-package>."
         )
         return
     lines = [f"  {name:<20} [{s.source}]  {s.description}" for name, s in sorted(found.items())]

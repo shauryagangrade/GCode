@@ -17,6 +17,7 @@ def _write(directory: Path, name: str, content: str) -> Path:
 
 def test_discover_finds_project_and_user_skills(tmp_path, monkeypatch):
     monkeypatch.setattr(skills, "USER_SKILLS_DIR", tmp_path / "user" / ".gcode" / "skills")
+    monkeypatch.setattr(skills, "CLAUDE_SKILLS_DIR", tmp_path / "nonexistent-claude-dir")
     _write(skills.USER_SKILLS_DIR, "review.md", "# Code review\nBe thorough.")
 
     project_root = tmp_path / "project"
@@ -34,6 +35,7 @@ def test_discover_finds_project_and_user_skills(tmp_path, monkeypatch):
 
 def test_project_skill_overrides_same_named_user_skill(tmp_path, monkeypatch):
     monkeypatch.setattr(skills, "USER_SKILLS_DIR", tmp_path / "user" / ".gcode" / "skills")
+    monkeypatch.setattr(skills, "CLAUDE_SKILLS_DIR", tmp_path / "nonexistent-claude-dir")
     _write(skills.USER_SKILLS_DIR, "style.md", "# User style\nUser version.")
 
     project_root = tmp_path / "project"
@@ -52,7 +54,95 @@ def test_project_skill_overrides_same_named_user_skill(tmp_path, monkeypatch):
 
 def test_discover_with_no_skills_dirs_returns_empty(tmp_path, monkeypatch):
     monkeypatch.setattr(skills, "USER_SKILLS_DIR", tmp_path / "nonexistent-user-dir")
+    monkeypatch.setattr(skills, "CLAUDE_SKILLS_DIR", tmp_path / "nonexistent-claude-dir")
     assert skills.discover_skills(str(tmp_path / "nonexistent-project")) == {}
+
+
+def test_discover_finds_claude_style_skill_folders(tmp_path):
+    skill_dir = tmp_path / "graphify"
+    skill_path = _write(
+        skill_dir,
+        "SKILL.md",
+        '---\nname: graphify\ndescription: "Builds knowledge graphs."\n---\n\n# /graphify\n',
+    )
+
+    found = skills._skill_entries(tmp_path)
+
+    assert found == {"graphify": skill_path}
+    assert skills._describe(skill_path) == "Builds knowledge graphs."
+
+
+def test_describe_parses_frontmatter_description_quoted_and_plain(tmp_path):
+    quoted = _write(
+        tmp_path,
+        "quoted.md",
+        '---\nname: q\ndescription: "A quoted description."\n---\n\n# Heading ignored\n',
+    )
+    plain = _write(
+        tmp_path,
+        "plain.md",
+        "---\nname: p\ndescription: A plain description.\n---\n\nBody.\n",
+    )
+
+    assert skills._describe(quoted) == "A quoted description."
+    assert skills._describe(plain) == "A plain description."
+
+
+def test_describe_without_description_field_falls_back_to_heading(tmp_path):
+    path = _write(tmp_path, "s.md", "---\nname: s\n---\n\n# The heading wins\nBody.\n")
+
+    assert skills._describe(path) == "The heading wins"
+
+
+def test_claude_source_is_lowest_precedence(tmp_path, monkeypatch):
+    monkeypatch.setattr(skills, "CLAUDE_SKILLS_DIR", tmp_path / "claude" / "skills")
+    monkeypatch.setattr(skills, "USER_SKILLS_DIR", tmp_path / "user" / ".gcode" / "skills")
+    project_root = tmp_path / "project"
+
+    _write(
+        skills.CLAUDE_SKILLS_DIR / "style",
+        "SKILL.md",
+        "---\ndescription: Claude version.\n---\n",
+    )
+    user_skills = skills.USER_SKILLS_DIR
+    _write(user_skills, "style.md", "# User version")
+    project_skills = skills.project_skills_dir(str(project_root))
+    _write(project_skills, "style.md", "# Project version")
+
+    found = skills.discover_skills(str(project_root))
+    assert found["style"].source == "project"
+    assert found["style"].description == "Project version"
+
+    # Project copy removed -> the user-level one surfaces.
+    (project_skills / "style.md").unlink()
+    found = skills.discover_skills(str(project_root))
+    assert found["style"].source == "user"
+    assert found["style"].description == "User version"
+
+    # User copy removed too -> the claude folder is the last resort.
+    (user_skills / "style.md").unlink()
+    found = skills.discover_skills(str(project_root))
+    assert found["style"].source == "claude"
+    assert found["style"].description == "Claude version."
+
+
+def test_discover_ignores_folders_without_skill_md(tmp_path, monkeypatch):
+    monkeypatch.setattr(skills, "CLAUDE_SKILLS_DIR", tmp_path / "claude" / "skills")
+    (skills.CLAUDE_SKILLS_DIR / "not-a-skill").mkdir(parents=True)
+    _write(skills.CLAUDE_SKILLS_DIR / "not-a-skill", "README.md", "# Not a skill")
+
+    assert skills.discover_skills(str(tmp_path / "project")) == {}
+
+
+def test_flat_file_wins_over_same_named_skill_folder(tmp_path, monkeypatch):
+    monkeypatch.setattr(skills, "USER_SKILLS_DIR", tmp_path / "user" / ".gcode" / "skills")
+    flat = _write(skills.USER_SKILLS_DIR, "duo.md", "# Flat version")
+    _write(skills.USER_SKILLS_DIR / "duo", "SKILL.md", "---\ndescription: Folder version.\n---")
+
+    found = skills.discover_skills(str(tmp_path / "project"))
+
+    assert found["duo"].path == flat
+    assert found["duo"].description == "Flat version"
 
 
 def test_describe_falls_back_to_plain_first_line(tmp_path):

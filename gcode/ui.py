@@ -30,7 +30,7 @@ _SLASH_COMMANDS = [
     ("/history", "Show recent conversation turns"),
     ("/status", "Show quick git status"),
     ("/diff", "Show staged and unstaged git changes"),
-    ("/skills", "List skills from .gcode/skills/ (project + user)"),
+    ("/skills", "List skills (.gcode/skills, ~/.gcode/skills, ~/.claude/skills)"),
     ("/skill", "Activate a skill, or 'import <package>' via npx"),
     ("/clear", "Start a fresh session (discard history)"),
     ("/quit", "Leave GCode"),

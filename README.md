@@ -83,6 +83,13 @@ house style, a domain checklist, project-specific conventions. Drop one into
 (user-wide, available in every project); a project skill overrides a user
 skill of the same name.
 
+GCode also reads [Claude Code](https://claude.com/claude-code) skills
+natively: `~/.claude/skills/` is scanned as an additional (lowest-precedence)
+source, accepting both its `<name>/SKILL.md` folder layout — with the YAML
+frontmatter `description:` used for `/skills` listings — and plain `.md`
+files. Precedence: project > user > claude, so a same-named local skill
+always wins.
+
 ```
 # .gcode/skills/commit-style.md
 # Commit style
