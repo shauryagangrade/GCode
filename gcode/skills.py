@@ -70,11 +70,6 @@ def discover_skills(project_root: str) -> dict[str, Skill]:
     return skills
 
 
-def npx_available() -> bool:
-    """Return whether an ``npx`` executable is on PATH."""
-    return shutil.which("npx") is not None
-
-
 def import_skill(package: str, project_root: str, timeout: int = NPX_TIMEOUT) -> list[str]:
     """Fetch a skill via ``npx <package>`` into the project's skills folder.
 
@@ -83,9 +78,13 @@ def import_skill(package: str, project_root: str, timeout: int = NPX_TIMEOUT) ->
     ``project_skills_dir(project_root)`` and treated as the skill(s) it
     provides. Returns the imported skill names (their filename stems).
 
-    Raises RuntimeError if ``npx`` isn't installed, the command fails or
-    times out, or it writes no Markdown files.
+    Raises RuntimeError if ``package`` is flag-shaped rather than a package
+    name, ``npx`` isn't installed, the command fails or times out, it writes
+    no Markdown files, or a produced file would overwrite an existing skill.
     """
+    if package.startswith("-"):
+        raise RuntimeError(f"invalid package name: {package} (must not start with '-')")
+
     npx_path = shutil.which("npx")
     if npx_path is None:
         raise RuntimeError("npx not found - install Node.js to import skills via npx")
@@ -113,6 +112,13 @@ def import_skill(package: str, project_root: str, timeout: int = NPX_TIMEOUT) ->
 
         target_dir = project_skills_dir(project_root)
         target_dir.mkdir(parents=True, exist_ok=True)
+        conflicts = [path.name for path in produced if (target_dir / path.name).exists()]
+        if conflicts:
+            raise RuntimeError(
+                "refusing to overwrite existing skill file(s): "
+                + ", ".join(conflicts)
+                + " - delete or rename them first"
+            )
         imported = []
         for path in produced:
             shutil.copyfile(path, target_dir / path.name)

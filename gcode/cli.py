@@ -223,7 +223,10 @@ def _cmd_skill_import(package: str, ui: RichUI) -> None:
 
     try:
         imported = skills_module.import_skill(package, os.getcwd())
-    except RuntimeError as exc:
+    except (RuntimeError, OSError) as exc:
+        # OSError: e.g. unwritable skills dir / disk full while copying, so a
+        # filesystem failure degrades to an error message instead of crashing
+        # the session.
         ui.error(str(exc))
         return
 

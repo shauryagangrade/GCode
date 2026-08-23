@@ -71,14 +71,13 @@ def test_skill_read_returns_full_content(tmp_path):
     assert skill.read() == "# Title\nBody line."
 
 
-# -- npx_available / import_skill ---------------------------------------------
+# -- import_skill --------------------------------------------------------------
 
 
-def test_npx_available_reflects_shutil_which(monkeypatch):
+def test_import_skill_rejects_flag_shaped_package(tmp_path, monkeypatch):
     monkeypatch.setattr(skills.shutil, "which", lambda cmd: "/usr/bin/npx")
-    assert skills.npx_available() is True
-    monkeypatch.setattr(skills.shutil, "which", lambda cmd: None)
-    assert skills.npx_available() is False
+    with pytest.raises(RuntimeError, match="invalid package name"):
+        skills.import_skill("--some-flag", str(tmp_path))
 
 
 def test_import_skill_raises_when_npx_missing(tmp_path, monkeypatch):
@@ -136,3 +135,23 @@ def test_import_skill_copies_produced_markdown_into_project_skills_dir(tmp_path,
     assert imported == ["imported-skill"]
     dest = skills.project_skills_dir(str(project_root)) / "imported-skill.md"
     assert dest.read_text(encoding="utf-8") == "# Imported\nFrom npx."
+
+
+def test_import_skill_refuses_to_overwrite_existing_skill_file(tmp_path, monkeypatch):
+    monkeypatch.setattr(skills.shutil, "which", lambda cmd: "/usr/bin/npx")
+
+    def fake_run(cmd, cwd, capture_output, text, timeout, check):
+        (Path(cwd) / "imported-skill.md").write_text("# New version", encoding="utf-8")
+        return subprocess.CompletedProcess(cmd, returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    project_root = tmp_path / "project"
+    dest = skills.project_skills_dir(str(project_root)) / "imported-skill.md"
+    dest.parent.mkdir(parents=True)
+    dest.write_text("# Hand-written original", encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="refusing to overwrite existing skill file"):
+        skills.import_skill("some-pkg", str(project_root))
+
+    assert dest.read_text(encoding="utf-8") == "# Hand-written original"

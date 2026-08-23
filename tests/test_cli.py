@@ -334,6 +334,20 @@ def test_cmd_skill_import_reports_runtime_error():
     ui.error.assert_called_once_with("npx boom")
 
 
+def test_cmd_skill_import_reports_oserror_without_crashing():
+    ui = Mock()
+    with (
+        patch("gcode.cli.tool_module.is_auto_approve", return_value=True),
+        patch(
+            "gcode.cli.skills_module.import_skill",
+            side_effect=OSError(13, "Permission denied"),
+        ),
+    ):
+        _cmd_skill_import("some-pkg", ui)
+
+    assert "Permission denied" in ui.error.call_args.args[0]
+
+
 def test_cwd_pointing_at_a_file_exits_two(tmp_path, capsys, monkeypatch):
     import os
 
