@@ -5,13 +5,13 @@
 Pushing a tag matching `v*` (e.g. `v0.3.0`) runs
 [`.github/workflows/release.yml`](../.github/workflows/release.yml), which:
 
-1. Builds the sdist + wheel (`uv run python -m build`).
-2. Runs the same checks as CI's build job: verifies the package imports,
+1. Verifies the **pushed tag itself** matches `gcode.__version__` before
+   anything else — a forgotten version bump fails the release fast instead of
+   shipping (or even building) the wrong artifacts under the wrong name.
+2. Builds the sdist + wheel (`uv run python -m build`).
+3. Runs the same checks as CI's build job: verifies the package imports,
    the `gcode` CLI entry point works, and `importlib.metadata.version('gcode')`
    agrees with `gcode.__version__`.
-3. Additionally verifies the **pushed tag itself** matches `gcode.__version__`
-   — a tag/version mismatch fails the release instead of shipping the wrong
-   artifacts under the wrong name.
 4. Runs `pip-audit` — a known-vulnerable dependency fails the release.
 5. Extracts that version's section from [`CHANGELOG.md`](../CHANGELOG.md)
    (via [`scripts/extract_release_notes.py`](../scripts/extract_release_notes.py))

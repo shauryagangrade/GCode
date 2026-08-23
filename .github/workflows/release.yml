@@ -15,6 +15,11 @@ on:
 permissions:
   contents: write
 
+# Never cancel an in-flight release run, even if another tag lands mid-run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   release:
     name: Build, verify, and publish GitHub release
@@ -29,6 +34,19 @@ jobs:
 
       - name: Install dev dependencies
         run: uv sync --extra dev
+
+      # Fail fast on a forgotten version bump before spending time on the
+      # build, audit, and publish steps below.
+      - name: Verify tag matches package version
+        run: |
+          set -euo pipefail
+          tag_version="${GITHUB_REF_NAME#v}"
+          pkg_version="$(uv run python -c 'from gcode import __version__; print(__version__)')"
+          if [ "$tag_version" != "$pkg_version" ]; then
+            echo "tag $GITHUB_REF_NAME does not match gcode.__version__ ($pkg_version)"
+            exit 1
+          fi
+          echo "tag matches package version: $pkg_version"
 
       - name: Build sdist + wheel
         run: uv run python -m build
@@ -49,17 +67,6 @@ jobs:
           print('version OK:', __version__)
           "
 
-      - name: Verify tag matches package version
-        run: |
-          set -euo pipefail
-          tag_version="${GITHUB_REF_NAME#v}"
-          pkg_version="$(uv run python -c 'from gcode import __version__; print(__version__)')"
-          if [ "$tag_version" != "$pkg_version" ]; then
-            echo "tag $GITHUB_REF_NAME does not match gcode.__version__ ($pkg_version)"
-            exit 1
-          fi
-          echo "tag matches package version: $pkg_version"
-
       - name: Audit dependencies for known vulnerabilities
         run: uv run pip-audit --progress-spinner off
 
@@ -71,7 +78,9 @@ jobs:
           cat release-notes.md
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        # Third-party action with contents: write, so pinned to the v2 commit
+        # SHA rather than a mutable tag.
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           name: ${{ github.ref_name }}
           body_path: release-notes.md
