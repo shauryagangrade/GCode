@@ -1,40 +1,39 @@
 import os
+import sys
 from unittest.mock import patch
 
-from gcode.tools import _grep_python, edit_file, grep, list_dir
+import pytest
+from gcode.tools import _grep_python, edit_file, grep, list_dir, read_file, write_file
 
 
-def test_edit_file_unique():
-    d = "/tmp/gcode_test_edit_unique"
-    os.makedirs(d, exist_ok=True)
-    p = os.path.join(d, "f.txt")
-    with open(p, "w") as f:
-        f.write("hello world\n")
-    out = edit_file.invoke({"path": p, "old_string": "world", "new_string": "there"})
+def test_edit_file_unique(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    p = tmp_path / "f.txt"
+    p.write_text("hello world\n")
+    out = edit_file.invoke({"path": str(p), "old_string": "world", "new_string": "there"})
     assert "Edited" in out
-    with open(p) as f:
-        assert f.read() == "hello there\n"
+    assert p.read_text() == "hello there\n"
 
 
-def test_edit_file_ambiguous():
-    d = "/tmp/gcode_test_edit_ambiguous"
-    os.makedirs(d, exist_ok=True)
-    p = os.path.join(d, "f.txt")
-    with open(p, "w") as f:
-        f.write("a a a\n")
-    out = edit_file.invoke({"path": p, "old_string": "a", "new_string": "b"})
+def test_edit_file_ambiguous(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    p = tmp_path / "f.txt"
+    p.write_text("a a a\n")
+    out = edit_file.invoke({"path": str(p), "old_string": "a", "new_string": "b"})
     assert "found 3 times" in out
 
 
-def test_edit_file_not_found():
-    out = edit_file.invoke({"path": "/no/such/file.txt", "old_string": "x", "new_string": "y"})
+def test_edit_file_not_found(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    out = edit_file.invoke({"path": "no_such_file.txt", "old_string": "x", "new_string": "y"})
     assert "File not found" in out
 
 
-def test_list_dir(tmp_path):
+def test_list_dir(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     (tmp_path / "a.txt").write_text("x")
     (tmp_path / "sub").mkdir()
-    out = list_dir.invoke({"path": str(tmp_path)})
+    out = list_dir.invoke({"path": "."})
     assert "a.txt" in out
     assert "sub/" in out
 
@@ -284,3 +283,99 @@ def test_grep_filters_by_glob(tmp_path):
 
     assert "needle in python" in out
     assert "needle in text" not in out
+
+
+# -- workspace boundary -------------------------------------------------------
+
+
+class _FakeStdIn:
+    """Stand-in for sys.stdin to control tty detection."""
+
+    def __init__(self, interactive: bool):
+        self._interactive = interactive
+
+    def isatty(self) -> bool:
+        return self._interactive
+
+
+def _outside_file(tmp_path):
+    """A file that resolves outside the workspace (cwd == tmp_path)."""
+    outside = tmp_path.parent / "outside.txt"
+    outside.write_text("secret content\n")
+    return outside
+
+
+def test_file_tools_reject_outside_workspace_non_tty(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "stdin", _FakeStdIn(interactive=False))
+
+    out = read_file.invoke({"path": str(_outside_file(tmp_path))})
+    assert "Refusing to access" in out
+    assert "outside workspace" in out
+
+
+def test_file_tools_reject_outside_workspace_interactive(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "stdin", _FakeStdIn(interactive=True))
+
+    with patch("builtins.input", return_value="n"):
+        out = read_file.invoke({"path": str(_outside_file(tmp_path))})
+    assert "Refusing to access" in out
+
+
+def test_file_tools_allow_confirmed_outside_workspace(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "stdin", _FakeStdIn(interactive=True))
+
+    with patch("builtins.input", return_value="y"):
+        out = read_file.invoke({"path": str(_outside_file(tmp_path))})
+    assert "secret content" in out
+
+
+def test_write_file_outside_workspace_rejected_non_tty(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "stdin", _FakeStdIn(interactive=False))
+
+    outside = tmp_path.parent / "outside_write.txt"
+    out = write_file.invoke({"path": str(outside), "content": "boom"})
+    assert "Refusing to access" in out
+    assert not outside.exists()
+
+
+def test_auto_approve_allows_outside_workspace(tmp_path, monkeypatch):
+    from gcode.tools import AUTO_APPROVE, set_auto_approve
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "stdin", _FakeStdIn(interactive=False))
+
+    set_auto_approve(True)
+    try:
+        out = read_file.invoke({"path": str(_outside_file(tmp_path))})
+    finally:
+        set_auto_approve(AUTO_APPROVE)
+    assert "secret content" in out
+
+
+def test_workspace_boundary_resolves_inside_and_dotdot(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "stdin", _FakeStdIn(interactive=False))
+
+    (tmp_path / "inside.txt").write_text("ok\n")
+    assert "ok" in read_file.invoke({"path": "inside.txt"})
+
+    out = read_file.invoke({"path": "../escaped.txt"})
+    assert "Refusing to access" in out
+
+
+@pytest.mark.skipif(not hasattr(os, "symlink"), reason="symlinks not supported")
+def test_workspace_boundary_blocks_symlink_escape(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "stdin", _FakeStdIn(interactive=False))
+
+    target = tmp_path.parent / "target.txt"
+    target.write_text("secret\n")
+    link = tmp_path / "link.txt"
+    link.symlink_to(target)
+
+    out = read_file.invoke({"path": str(link)})
+    assert "Refusing to access" in out

@@ -10,6 +10,8 @@ import os
 import re
 import shutil
 import subprocess
+import sys
+from pathlib import Path
 
 from langchain.tools import tool
 
@@ -38,6 +40,46 @@ def set_bash_timeout(value: int) -> None:
     """Set the bash tool timeout in seconds (configurable via .gcoderc)."""
     global BASH_TIMEOUT
     BASH_TIMEOUT = value
+
+
+def _workspace_root() -> Path:
+    """Return the current workspace root (session cwd)."""
+    return Path(os.getcwd()).resolve()
+
+
+def _is_within_workspace(path: str) -> bool:
+    """Return True if *path* resolves inside the workspace root.
+
+    Handles `..`, absolute paths, and symlinks via :meth:`Path.resolve`.
+    An empty path is treated as outside.
+    """
+    if not path:
+        return False
+    try:
+        return Path(path).resolve().is_relative_to(_workspace_root())
+    except (ValueError, OSError):
+        return False
+
+
+def _check_workspace_boundary(path: str) -> str | None:
+    """Enforce workspace boundary for file tools.
+
+    Returns an error string if the path is outside the workspace and the
+    user does not confirm, or ``None`` if the operation may proceed.
+    In non-interactive mode (no tty) the operation is rejected unless
+    auto-approve is enabled, mirroring :func:`execute_bash`.
+    """
+    if _is_within_workspace(path) or AUTO_APPROVE:
+        return None
+    root = _workspace_root()
+    refuse = f"Refusing to access '{path}': outside workspace '{root}'."
+    if not sys.stdin.isatty():
+        return refuse + " No terminal available; run with --yes to allow."
+    try:
+        ans = input(f"Path '{path}' is outside workspace '{root}'. Allow? (y/n): ")
+    except (EOFError, KeyboardInterrupt, OSError):
+        return refuse + " No terminal available; run with --yes to allow."
+    return None if ans.strip().lower() in ("y", "yes") else refuse
 
 
 @tool
@@ -120,6 +162,9 @@ def read_file(path: str, max_lines: int = 2000) -> str:
         max_lines: Maximum number of lines to return (default 2000); longer
             files are truncated with a note.
     """
+    err = _check_workspace_boundary(path)
+    if err is not None:
+        return err
     if not os.path.isfile(path):
         return f"File not found: {path}"
     try:
@@ -150,6 +195,9 @@ def write_file(path: str, content: str, force: bool = False) -> str:
         content: Full text content to write.
         force: If True, overwrite an existing file.
     """
+    err = _check_workspace_boundary(path)
+    if err is not None:
+        return err
     if os.path.exists(path) and not force:
         return f"Refusing to overwrite existing file {path} (pass force=True to overwrite)."
     try:
@@ -176,6 +224,9 @@ def edit_file(path: str, old_string: str, new_string: str, replace_all: bool = F
         new_string: Replacement text.
         replace_all: If True, replace every occurrence.
     """
+    err = _check_workspace_boundary(path)
+    if err is not None:
+        return err
     if not os.path.isfile(path):
         return f"File not found: {path}"
     try:
@@ -213,6 +264,9 @@ def list_dir(path: str = ".") -> str:
     Args:
         path: Directory to list (default current directory).
     """
+    err = _check_workspace_boundary(path)
+    if err is not None:
+        return err
     if not os.path.isdir(path):
         return f"Not a directory: {path}"
     try:
