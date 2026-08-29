@@ -273,9 +273,22 @@ def grep(
             return f"No matches for {pattern!r} in {path}."
         if result.returncode != 0:
             return f"grep error: {result.stderr.strip()}"
-        return result.stdout.strip()
+        out = result.stdout.strip()
+        # Cap oversized grep output so a single tool call can't blow the context window
+        if len(out) > 8000:
+            out = out[:8000] + "\n... [truncated at 8000 chars, showing first 8000]"
+        elif out.count("\n") > 200:
+            lines = out.splitlines()
+            out = "\n".join(lines[:200]) + f"\n... [truncated at 200 lines, {len(lines)} total]"
+        return out
 
-    return _grep_python(pattern, path, glob, ignore_case)
+    out = _grep_python(pattern, path, glob, ignore_case)
+    if len(out) > 8000:
+        return out[:8000] + "\n... [truncated at 8000 chars, showing first 8000]"
+    if out.count("\n") > 200:
+        lines = out.splitlines()
+        return "\n".join(lines[:200]) + f"\n... [truncated at 200 lines, {len(lines)} total]"
+    return out
 
 
 def _is_binary(filepath: str) -> bool:

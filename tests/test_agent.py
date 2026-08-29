@@ -155,3 +155,77 @@ def test_print_usage_silent_without_usage():
     _print_usage(AIMessage(content="no usage here"), ui)
 
     assert not any(call[0] == "info" for call in ui.calls if isinstance(call, tuple))
+
+
+# -- trim_history -------------------------------------------------------------
+
+
+def test_trim_history_keeps_too_many_small_messages():
+    from gcode.agent import MAX_HISTORY, trim_history
+    from langchain_core.messages import HumanMessage
+
+    msgs = [HumanMessage(content=f"m{i}") for i in range(MAX_HISTORY + 5)]
+    system = HumanMessage(content="system")
+    history = [system] + msgs
+
+    trim_history(history)
+
+    assert history[0] is system
+    assert len(history) == MAX_HISTORY + 1
+
+
+def test_trim_history_trims_by_token_budget_not_count():
+    from gcode.agent import MAX_HISTORY_TOKENS, trim_history
+    from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+
+    system = HumanMessage(content="system")
+    # Varied text so the estimate is over budget whether tiktoken or len//4 is used
+    # (pure "-xxxxxxxx" compresses to almost nothing under BPE).
+    big = " ".join(f"term{i}" for i in range(MAX_HISTORY_TOKENS * 4))
+    history = [
+        system,
+        HumanMessage(content="turn one"),
+        AIMessage(
+            content="",
+            tool_calls=[{"name": "grep", "args": {}, "id": "call_1", "type": "tool_call"}],
+        ),
+        ToolMessage(content=big, tool_call_id="call_1"),
+        HumanMessage(content="turn two"),
+        AIMessage(content="reply"),
+    ]
+
+    trim_history(history)
+
+    # The oversized turn is dropped entirely (no orphaned ToolMessage).
+    assert history[0] is system
+    assert history[-1].content == "reply"
+    assert not any(isinstance(m, ToolMessage) for m in history)
+    assert len(history) <= 4
+
+
+def test_trim_history_orphaned_tool_messages_dropped():
+    from gcode.agent import MAX_HISTORY, MAX_HISTORY_TOKENS, trim_history
+    from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+
+    system = HumanMessage(content="system")
+    # Keep enough short messages that the count limit (not the token budget) trims,
+    # and make the kept tail begin with ToolMessages whose owner was trimmed out.
+    rest = [
+        AIMessage(
+            content="",
+            tool_calls=[{"name": "grep", "args": {}, "id": "call_1", "type": "tool_call"}],
+        ),
+        ToolMessage(content="res1", tool_call_id="call_1"),
+        ToolMessage(content="res2", tool_call_id="call_1"),
+    ] + [HumanMessage(content=f"m{i}") for i in range(MAX_HISTORY)]
+    history = [system] + rest
+    small = sum(len(m.content) for m in history)
+    assert small <= MAX_HISTORY_TOKENS * 4  # token budget not the deciding factor
+
+    trim_history(history)
+
+    assert history[0] is system
+    assert len(history) <= MAX_HISTORY + 1
+    assert not any(isinstance(m, ToolMessage) for m in history)
+    assert not getattr(history[1], "tool_calls", None)
+    assert history[1].content == "m0"
