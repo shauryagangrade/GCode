@@ -133,22 +133,48 @@ def test_token_renders_markdown_after_threshold(monkeypatch):
 
     fake = _FakeLive()
     monkeypatch.setattr(ui_module, "Live", lambda *args, **kwargs: fake)
+    monkeypatch.setattr(ui_module, "_TRUNCATE_MIN_INTERVAL", 0.0)
 
     ui = RichUI()
     ui.assistant_start()
 
-    # Below the 80-char re-render threshold: no update yet.
+    # Below the 160-char re-render threshold: no update yet.
     ui.token("x" * 40)
     assert fake.updates == []
 
     # Crossing the threshold triggers one Markdown update.
-    ui.token("y" * 50)  # total 90 >= 80
+    ui.token("y" * 150)  # total 190 >= 160
     assert len(fake.updates) == 1
 
     # Ending the stream renders the final text and stops the live region.
     ui.assistant_end()
     assert fake.stopped
     assert len(fake.updates) == 2
+
+
+def test_token_throttled_by_time_interval(monkeypatch):
+    from gcode import ui as ui_module
+
+    fake = _FakeLive()
+    monkeypatch.setattr(ui_module, "Live", lambda *args, **kwargs: fake)
+    monkeypatch.setattr(ui_module, "_TRUNCATE_STEP", 1)
+    monkeypatch.setattr(ui_module, "_TRUNCATE_MIN_INTERVAL", 60.0)
+
+    clock = iter([10.0, 10.05, 70.0])
+    monkeypatch.setattr(ui_module.time, "monotonic", lambda: next(clock))
+
+    ui = RichUI()
+    ui.assistant_start()
+
+    ui.token("a")  # 1 char but only 10s elapsed since 0.0 -> throttled
+    ui.token("b")  # still < 60s elapsed -> throttled
+    assert len(fake.updates) == 0
+
+    ui.token("c")  # 70s elapsed -> update fires
+    assert len(fake.updates) == 1
+
+    ui.assistant_end()
+    assert fake.stopped
 
 
 # -- tool display ----------------------------------------------------------

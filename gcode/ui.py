@@ -5,6 +5,8 @@ loop calls: streaming assistant text (spinner -> live Markdown), tool-call
 display, a permission gate, and status/error output.
 """
 
+import time
+
 import questionary
 from prompt_toolkit import PromptSession
 from prompt_toolkit.formatted_text import HTML
@@ -16,7 +18,8 @@ from rich.rule import Rule
 from rich.spinner import Spinner
 from rich.text import Text
 
-_TRUNCATE_STEP = 80  # re-render Markdown only after this many new characters
+_TRUNCATE_STEP = 160  # re-render Markdown only after this many new characters
+_TRUNCATE_MIN_INTERVAL = 0.10  # seconds between live updates (max ~10 fps)
 
 # Slash commands available in the interactive menu
 _SLASH_COMMANDS = [
@@ -148,6 +151,7 @@ class RichUI:
     def assistant_start(self) -> None:
         self._buffer = ""
         self._last_len = 0
+        self._last_update = 0.0
         self._live = Live(
             Spinner("dots", text="Thinking…"),
             console=self.console,
@@ -160,9 +164,14 @@ class RichUI:
         if self._live is None:
             return
         self._buffer += text
-        if len(self._buffer) - self._last_len >= _TRUNCATE_STEP:
+        now = time.monotonic()
+        if (
+            len(self._buffer) - self._last_len >= _TRUNCATE_STEP
+            and now - self._last_update >= _TRUNCATE_MIN_INTERVAL
+        ):
             self._live.update(Markdown(self._buffer))
             self._last_len = len(self._buffer)
+            self._last_update = now
 
     def assistant_end(self) -> None:
         if self._live is None:
