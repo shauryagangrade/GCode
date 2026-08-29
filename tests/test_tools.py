@@ -174,6 +174,45 @@ def test_execute_bash_auto_approve_skips_prompt(tmp_path):
         set_auto_approve(AUTO_APPROVE)
 
 
+def test_execute_bash_windows_missing_bash_returns_clear_error():
+    from gcode.tools import AUTO_APPROVE, execute_bash, set_auto_approve
+
+    set_auto_approve(True)
+    try:
+        with (
+            patch("gcode.tools.os.name", "nt"),
+            patch("gcode.tools.shutil.which", return_value=None),
+        ):
+            out = execute_bash.invoke({"command": "echo hi"})
+    finally:
+        set_auto_approve(AUTO_APPROVE)
+    assert "bash not found on native Windows" in out
+
+
+def test_execute_bash_windows_runs_bash_explicitly(tmp_path, monkeypatch):
+    """On Windows, shell=True would invoke cmd.exe; bash must run explicitly."""
+    from gcode.tools import AUTO_APPROVE, execute_bash, set_auto_approve
+
+    monkeypatch.chdir(tmp_path)
+    set_auto_approve(True)
+    try:
+        with (
+            patch("gcode.tools.os.name", "nt"),
+            patch("gcode.tools.shutil.which", return_value="C:/Program Files/Git/bin/bash.exe"),
+            patch("gcode.tools.subprocess.run") as run,
+        ):
+            run.return_value.returncode = 0
+            run.return_value.stdout = "hi from bash\n"
+            run.return_value.stderr = ""
+            out = execute_bash.invoke({"command": "echo hi"})
+    finally:
+        set_auto_approve(AUTO_APPROVE)
+    assert "hi from bash" in out
+    cmd, kwargs = run.call_args
+    assert cmd[0] == ["C:/Program Files/Git/bin/bash.exe", "-c", "echo hi"]
+    assert kwargs.get("shell") is not True
+
+
 def test_grep_passes_include_as_one_argument():
     """The glob must stay attached to --include, as --include=<glob>.
 

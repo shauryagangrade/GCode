@@ -50,6 +50,18 @@ def execute_bash(command: str) -> str:
     Returns combined stdout and stderr, and reports a non-zero exit code if the
     command fails.
     """
+    # Windows: shell=True invokes cmd.exe, not bash. If bash is unavailable,
+    # fail with a clear, actionable message rather than a confusing subprocess
+    # error. When bash exists, run it explicitly so bash syntax works (shell=True
+    # on Windows would still route through cmd.exe). See docs/windows.md and
+    # issue #54.
+    bash = shutil.which("bash")
+    if os.name == "nt" and bash is None:
+        return (
+            "execute_bash: bash not found on native Windows. GCode's bash tool "
+            "requires bash (use WSL2 or Git Bash). See docs/windows.md for Windows "
+            f"setup. Command was: {command}"
+        )
     if not AUTO_APPROVE:
         try:
             confirm = input(f"GCode wants to run: {command}\nApprove? (y/n): ")
@@ -63,9 +75,27 @@ def execute_bash(command: str) -> str:
         if confirm.strip().lower() != "y":
             return "Command execution cancelled by user."
     try:
-        result = subprocess.run(  # nosec B602 — execute_bash is the tool's purpose; gated by y/n approval
-            command, shell=True, capture_output=True, text=True, timeout=BASH_TIMEOUT, check=False
-        )
+        # nosec B602 — execute_bash is the tool's purpose; gated by y/n approval.
+        # On Windows, shell=True would invoke cmd.exe; run bash explicitly.
+        if os.name == "nt":
+            if bash is None:
+                return "execute_bash: bash not found on native Windows."
+            result = subprocess.run(
+                [bash, "-c", command],
+                capture_output=True,
+                text=True,
+                timeout=BASH_TIMEOUT,
+                check=False,
+            )
+        else:
+            result = subprocess.run(  # nosec B602 — gated by y/n approval
+                command,
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=BASH_TIMEOUT,
+                check=False,
+            )
     except subprocess.TimeoutExpired:
         return f"Command timed out after {BASH_TIMEOUT}s: {command}"
     except KeyboardInterrupt:
@@ -338,6 +368,11 @@ def git_commit(message: str) -> str:
 
 
 def _git(args: list) -> str:
+    if os.name == "nt" and not shutil.which("git"):
+        return (
+            "git not found on native Windows. Install Git for Windows and ensure "
+            "git is on PATH, or use WSL2/Git Bash. See docs/windows.md."
+        )
     cmd = ["git"] + args
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=120, check=False)
