@@ -27,8 +27,12 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `/skills` output reformatted: one line per skill with a padded name column, color-coded source tag (project/user/claude), and descriptions truncated to ~72 chars for scannability
 - `/help` command listing grouped by category (General, Model, Session, Git) so the growing command set stays scannable
 - Setup docs (README, CONTRIBUTING) now point at `~/.gcode/.env` — the location the app actually reads — instead of a project-root `.env`
+- Live Markdown streaming now re-renders at most ~10 fps and only after 160 new characters (up from 80), cutting terminal/CPU churn on long responses
+- Conversation history is trimmed by an estimated token budget (default ~12k) as well as the 30-message cap, so one huge tool output can no longer silently blow the context window; oversized `grep` results are also capped at 8000 chars / 200 lines at the source
 
 ### Fixed
+- File tools (`read_file`, `write_file`, `edit_file`, `list_dir`) now refuse paths that resolve outside the workspace (session cwd, `--cwd`) unless the user confirms or `--yes` is set — symlink and `..` escapes are handled via `Path.resolve()`
+- On native Windows, the bash tool now fails with a clear, actionable message when bash is missing (WSL2/Git Bash), and runs bash explicitly instead of cmd.exe when bash is present; git tools report a clear message when git is missing
 - `execute_bash` no longer hangs or crashes when its approval prompt runs in a non-interactive environment (CI, Docker, pipes); it now rejects the command, and `--yes` can be used to auto-approve
 - Session history saves are atomic (temp file + rename) and failures are reported instead of silently swallowed; a corrupt session file now warns and names the path instead of masquerading as an empty conversation
 - `grep` keeps the glob attached to `--include=<glob>` so Git-for-Windows' MSYS runtime cannot expand it against the wrong directory
