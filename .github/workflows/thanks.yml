@@ -1,0 +1,19 @@
+name: Thank contributors
+on:
+  pull_request:
+    types: [closed]
+jobs:
+  thank:
+    if: github.event.pull_request.merged
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comment on merged PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: "Merged. Thanks for your work here. 🌟"
+            })
